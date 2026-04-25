@@ -916,21 +916,38 @@ async function sendMessage() {
     }
 
     // Check for schema discovery request
-    const schemaKeywords = ['what tables', 'table names', 'my schema', 'what columns', 'dataset structure', 'show me the tables'];
+    // Check if user is manually providing table names
+    const manualTableMatch = question.match(/my tables are(?:\s+called)?\s+(.+)/i);
+    if (manualTableMatch) {
+      const tableList = manualTableMatch[1];
+      config.schemaContext = "User confirmed their table names are: " + tableList;
+      localStorage.setItem('pbi_chat_config', JSON.stringify(config));
+      removeTyping(typingId);
+      addMessage('assistant', '✅ Got it! I will use these table names in all future DAX queries: **' + tableList + '**\n\nNow try asking a question about your data.');
+      document.getElementById('send-btn').disabled = false;
+      return;
+    }
+
+    const schemaKeywords = ['what tables', 'table names', 'my schema', 'what columns', 'dataset structure', 'show me the tables', 'discover schema'];
     const isSchemaRequest = schemaKeywords.some(k => question.toLowerCase().includes(k));
 
     if (isSchemaRequest && isAuthenticated) {
       try {
         const tables = await discoverSchema();
         removeTyping(typingId);
-        const msg = `📋 **Your dataset contains these tables:**\n\n${tables.map(t => `• ${t}`).join('\n')}\n\nI've saved this schema to help generate more accurate DAX queries. You can now ask questions and I'll use these exact table names.`;
+        const tableLines = tables.map(function(t) {
+          const cols = (t.columns || []).slice(0, 8).map(function(c) { return c.name; }).join(', ');
+          const more = (t.columns || []).length > 8 ? ' + ' + ((t.columns || []).length - 8) + ' more' : '';
+          return '**' + t.name + '**' + (cols ? '\n  Columns: ' + cols + more : '');
+        }).join('\n\n');
+        const msg = '📋 **Schema discovered — ' + tables.length + ' tables found:**\n\n' + tableLines + '\n\n✅ Schema saved! I will now use these exact table and column names in all DAX queries. Try asking a question about your data.';
         addMessage('assistant', msg);
         chatHistory.push({ role: 'assistant', content: msg });
         document.getElementById('send-btn').disabled = false;
         return;
       } catch(schemaErr) {
         removeTyping(typingId);
-        addMessage('assistant', `⚠️ Schema discovery failed: ${schemaErr.message}`);
+        addMessage('assistant', '⚠️ Schema discovery failed: ' + schemaErr.message + '\n\nAlternatively, tell me your table names manually by saying: "My tables are called X, Y, Z"');
         document.getElementById('send-btn').disabled = false;
         return;
       }
@@ -1082,28 +1099,39 @@ async function executeDAX(daxQuery) {
 }
 
 async function discoverSchema() {
-  const queries = [
-    "EVALUATE SELECTCOLUMNS(INFO.TABLES(), \"Table Name\", [Name])",
-    "EVALUATE INFO.VIEW.TABLES()"
-  ];
-  for (let i = 0; i < queries.length; i++) {
-    try {
-      const r = await fetch(getPBIEndpoint(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${pbiToken}` },
-        body: JSON.stringify({ queries: [{ query: queries[i] }], serializerSettings: { includeNulls: true } })
-      });
-      if (r.ok) {
-        const data = await r.json();
-        const rows = data.results[0].tables[0].rows;
-        const names = rows.map(function(row) { return Object.values(row)[0]; }).filter(Boolean);
-        config.schemaContext = "Actual table names in this dataset: " + names.join(', ');
-        localStorage.setItem('pbi_chat_config', JSON.stringify(config));
-        return names;
-      }
-    } catch(e) { continue; }
+  // Use the REST API tables endpoint — much more reliable than DAX INFO functions
+  const baseUrl = config.workspaceId
+    ? `https://api.powerbi.com/v1.0/myorg/groups/${config.workspaceId}/datasets/${config.datasetId}/tables`
+    : `https://api.powerbi.com/v1.0/myorg/datasets/${config.datasetId}/tables`;
+
+  const r = await fetch(baseUrl, {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${pbiToken}` }
+  });
+
+  if (!r.ok) {
+    const errData = await r.json();
+    throw new Error("Could not retrieve tables: " + (errData.error?.message || r.status));
   }
-  throw new Error("Could not retrieve schema from dataset.");
+
+  const data = await r.json();
+  const tables = data.value || [];
+
+  if (tables.length === 0) {
+    throw new Error("No tables found in dataset. You may need to publish to a shared workspace first.");
+  }
+
+  // Build rich schema context with table names AND column names
+  const schemaLines = tables.map(function(t) {
+    const cols = (t.columns || []).map(function(c) { return c.name; }).join(', ');
+    return "Table '" + t.name + "'" + (cols ? ": columns [" + cols + "]" : "");
+  });
+
+  config.schemaContext = "EXACT schema: " + schemaLines.join(" | ");
+  config.tableNames = tables.map(function(t) { return t.name; });
+  localStorage.setItem('pbi_chat_config', JSON.stringify(config));
+
+  return tables;
 }
 
 function formatResult(data) {
