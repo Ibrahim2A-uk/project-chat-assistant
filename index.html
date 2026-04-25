@@ -915,6 +915,27 @@ async function sendMessage() {
       throw new Error('No Claude API key configured. Please open Settings.');
     }
 
+    // Check for schema discovery request
+    const schemaKeywords = ['what tables', 'table names', 'my schema', 'what columns', 'dataset structure', 'show me the tables'];
+    const isSchemaRequest = schemaKeywords.some(k => question.toLowerCase().includes(k));
+
+    if (isSchemaRequest && isAuthenticated) {
+      try {
+        const tables = await discoverSchema();
+        removeTyping(typingId);
+        const msg = `📋 **Your dataset contains these tables:**\n\n${tables.map(t => `• ${t}`).join('\n')}\n\nI've saved this schema to help generate more accurate DAX queries. You can now ask questions and I'll use these exact table names.`;
+        addMessage('assistant', msg);
+        chatHistory.push({ role: 'assistant', content: msg });
+        document.getElementById('send-btn').disabled = false;
+        return;
+      } catch(schemaErr) {
+        removeTyping(typingId);
+        addMessage('assistant', `⚠️ Schema discovery failed: ${schemaErr.message}`);
+        document.getElementById('send-btn').disabled = false;
+        return;
+      }
+    }
+
     // Step 1: Ask Claude to generate a DAX query
     const daxQuery = await generateDAX(question);
 
@@ -951,9 +972,10 @@ async function sendMessage() {
 }
 
 async function generateDAX(question) {
-  const systemPrompt = `You are a Power BI DAX expert assistant. 
+  const systemPrompt = `You are a Power BI DAX expert assistant.
 The user has a Power BI dataset about project portfolio management.
 ${config.context ? `Dataset context: ${config.context}` : ''}
+${config.schemaContext ? config.schemaContext : 'IMPORTANT: Use generic table names as best guesses. User can run schema discovery to get exact names.'}
 
 The dataset likely contains tables related to:
 - Projects and project stages (Planned Value, Earned Value, Actual Cost, CPI, SPI)
@@ -965,16 +987,38 @@ The dataset likely contains tables related to:
 - Health & Safety (accident frequency rate, lost time incidents)
 - Change management (RFC count, cost impact)
 
-When the user asks a question, respond with ONLY a valid DAX query using EVALUATE syntax.
-Use table/column names that are typical for project management datasets.
-The query must start with EVALUATE and be executable against a Power BI dataset.
-Do not include any explanation — just the raw DAX query.
+CRITICAL RULES — you must follow these exactly:
+1. Respond with ONLY the raw DAX query — no markdown, no backticks, no code fences, no explanation
+2. The query MUST start with the word EVALUATE on the first line
+3. Do NOT wrap the query in triple backticks or any formatting
+4. Use CALCULATETABLE or SUMMARIZECOLUMNS correctly
+5. When filtering by date, use YEAR() and MONTH() functions on date columns rather than text comparison
+6. For aggregations without grouping, use: EVALUATE ROW("Metric Name", [Measure])
+7. For grouped results use SUMMARIZECOLUMNS with proper syntax
 
-Example format:
+CORRECT examples (output exactly like this, nothing else):
+
+Example 1 - single value:
+EVALUATE
+ROW("Total Earned Value", SUM('Financial Data'[Earned Value]))
+
+Example 2 - grouped summary:
 EVALUATE
 SUMMARIZECOLUMNS(
-    "Total EV", [Earned Value],
-    "Total PV", [Planned Value]
+    'Projects'[Project Name],
+    "Earned Value", SUM('Financial Data'[Earned Value]),
+    "Planned Value", SUM('Financial Data'[Planned Value])
+)
+
+Example 3 - filtered by date:
+EVALUATE
+CALCULATETABLE(
+    SUMMARIZECOLUMNS(
+        'Projects'[Project Name],
+        "Contingency Drawdown", SUM('Financial Data'[Contingency Drawdown])
+    ),
+    YEAR('Date'[Date]) = 2024,
+    MONTH('Date'[Date]) = 9
 )`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -999,20 +1043,22 @@ SUMMARIZECOLUMNS(
   }
 
   const data = await response.json();
-  return data.content[0].text.trim();
+  // Strip any markdown code fences Claude might include despite instructions
+  let dax = data.content[0].text.trim();
+  dax = dax.replace(/^```[\w]*\n?/gm, '').replace(/```$/gm, '').trim();
+  return dax;
+}
+
+function getPBIEndpoint() {
+  return config.workspaceId
+    ? `https://api.powerbi.com/v1.0/myorg/groups/${config.workspaceId}/datasets/${config.datasetId}/executeQueries`
+    : `https://api.powerbi.com/v1.0/myorg/datasets/${config.datasetId}/executeQueries`;
 }
 
 async function executeDAX(daxQuery) {
-  const endpoint = config.workspaceId
-    ? `https://api.powerbi.com/v1.0/myorg/groups/${config.workspaceId}/datasets/${config.datasetId}/executeQueries`
-    : `https://api.powerbi.com/v1.0/myorg/datasets/${config.datasetId}/executeQueries`;
-
-  const response = await fetch(endpoint, {
+  const response = await fetch(getPBIEndpoint(), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${pbiToken}`
-    },
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${pbiToken}` },
     body: JSON.stringify({
       queries: [{ query: daxQuery }],
       serializerSettings: { includeNulls: true }
@@ -1020,11 +1066,44 @@ async function executeDAX(daxQuery) {
   });
 
   if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error?.message || `API error ${response.status}`);
+    const errData = await response.json();
+    const errMsg = errData.error?.message || `API error ${response.status}`;
+    if (response.status === 400) {
+      throw new Error("DAX query error: table/column names don't match your dataset.\n\nError: " + errMsg + "\n\nTip: Type 'what tables are in my dataset?' to discover your schema.");
+    }
+    if (response.status === 401) {
+      isAuthenticated = false;
+      setStatus(false);
+      throw new Error("Authentication expired. Please click Connect to Power BI again.");
+    }
+    throw new Error(errMsg);
   }
-
   return await response.json();
+}
+
+async function discoverSchema() {
+  const queries = [
+    "EVALUATE SELECTCOLUMNS(INFO.TABLES(), \"Table Name\", [Name])",
+    "EVALUATE INFO.VIEW.TABLES()"
+  ];
+  for (let i = 0; i < queries.length; i++) {
+    try {
+      const r = await fetch(getPBIEndpoint(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${pbiToken}` },
+        body: JSON.stringify({ queries: [{ query: queries[i] }], serializerSettings: { includeNulls: true } })
+      });
+      if (r.ok) {
+        const data = await r.json();
+        const rows = data.results[0].tables[0].rows;
+        const names = rows.map(function(row) { return Object.values(row)[0]; }).filter(Boolean);
+        config.schemaContext = "Actual table names in this dataset: " + names.join(', ');
+        localStorage.setItem('pbi_chat_config', JSON.stringify(config));
+        return names;
+      }
+    } catch(e) { continue; }
+  }
+  throw new Error("Could not retrieve schema from dataset.");
 }
 
 function formatResult(data) {
