@@ -947,7 +947,19 @@ async function sendMessage() {
         return;
       } catch(schemaErr) {
         removeTyping(typingId);
-        addMessage('assistant', '⚠️ Schema discovery failed: ' + schemaErr.message + '\n\nAlternatively, tell me your table names manually by saying: "My tables are called X, Y, Z"');
+        let errMsg = '';
+        if (schemaErr.message === 'AUTO_DISCOVER_FAILED' || schemaErr.message.includes('Push API')) {
+          errMsg = '⚠️ Automatic schema discovery is not supported for this dataset type.\n\n' +
+            '**Please tell me your table names manually:**\n\n' +
+            '1. Open your report in **Power BI Desktop**\n' +
+            '2. Look at the **Fields pane** on the right side — you will see all your table names listed\n' +
+            '3. Type them here like this:\n\n' +
+            '*"My tables are called Projects, Financial Data, Risk Register, Schedule, Procurement"*\n\n' +
+            'I will save them and use the exact names in all future queries.';
+        } else {
+          errMsg = '⚠️ Schema discovery failed: ' + schemaErr.message + '\n\nYou can tell me your table names manually by typing: **"My tables are called X, Y, Z"**';
+        }
+        addMessage('assistant', errMsg);
         document.getElementById('send-btn').disabled = false;
         return;
       }
@@ -989,53 +1001,103 @@ async function sendMessage() {
 }
 
 async function generateDAX(question) {
-  const systemPrompt = `You are a Power BI DAX expert assistant.
-The user has a Power BI dataset about project portfolio management.
-${config.context ? `Dataset context: ${config.context}` : ''}
-${config.schemaContext ? config.schemaContext : 'IMPORTANT: Use generic table names as best guesses. User can run schema discovery to get exact names.'}
+  const systemPrompt = `You are a Power BI DAX expert assistant for a project portfolio management report.
 
-The dataset likely contains tables related to:
-- Projects and project stages (Planned Value, Earned Value, Actual Cost, CPI, SPI)
-- Schedule data (project stages, delays, milestones)
-- Cost and commercial data (budget, forecast, actual cost, cost variance)
-- Risk and issues (threats, issues, opportunities)
-- Procurement packages and awards
-- Quality audits
-- Health & Safety (accident frequency rate, lost time incidents)
-- Change management (RFC count, cost impact)
+CRITICAL: You have the EXACT schema below. Use ONLY these table and column names — do not guess or invent names.
 
-CRITICAL RULES — you must follow these exactly:
-1. Respond with ONLY the raw DAX query — no markdown, no backticks, no code fences, no explanation
-2. The query MUST start with the word EVALUATE on the first line
-3. Do NOT wrap the query in triple backticks or any formatting
-4. Use CALCULATETABLE or SUMMARIZECOLUMNS correctly
-5. When filtering by date, use YEAR() and MONTH() functions on date columns rather than text comparison
-6. For aggregations without grouping, use: EVALUATE ROW("Metric Name", [Measure])
-7. For grouped results use SUMMARIZECOLUMNS with proper syntax
+COMPLETE SCHEMA:
 
-CORRECT examples (output exactly like this, nothing else):
+TABLE: 'Change Data' | Columns: AVI Duration, AVI Final Schedule Impact (Days), AVI Final Value (OMR), CR Duration, Category of Change, ERI Duration, ERI Schedule Impact (Received), ERI VALUE (Received), RFC Duration, RFC Ref Code, RFC SCHEDULE IMPACT (Days), RFC VALUE (OMR), UniqueKey
+TABLE: 'Change Schedule' | Measures: AVI Raised, CR Raised, ERI Raised, RFC Raised
+TABLE: 'Change status' | Columns: Attribute.1, Decision, UniqueKey | Measures: RAG Change Projects
+TABLE: 'Cost_Total' | Columns: Name
+TABLE: 'Costos - Cashflow' | Measures: Cashflow (Cumulative) Actual, Cashflow (Cumulative) Forecast, Cashflow (Cumulative) Planned
+TABLE: 'DAX - Cost & EV' | Measures: % Actual Complete, % Planned Complete, Actual Cost Current Month, BAC Current Month, CPI Current Month To Date, CPI evolución, CV, EAC, EV, EV (To Date), EV (To Date) Current Month, EV Forecast, EV Forecast Duration (Months), EV Forecast current month, EVF, EVF (Projection), Forecasting Accuracy Current Month, PV, PV (Cumulative), PV (To Date) Current Month, RAG EV, SPI Current Month To Date, SPI evolucion, SV, Total Cost of Work Done to Date (AC)
+TABLE: 'DAX - Costos' | Measures: 00_Costos_Approved Budgets Changes, 00_Current Budget, 00_Current Commitments, 00_FFC Forecast Final Cost, 00_Original Budget, 00_Variance (%) FFC vs CB, 00_Variance FFC y CB, Accrued To Date, Agreed Instructions, Approved Change Authorisations Requests (CAR's), Certified to date, Contingency, Contract Placed, Contracts not placed, Early Warnings, RAG Cost, Unagreed Instructions
+TABLE: 'DAX - Other' | Measures: Report Name, _BLANK
+TABLE: 'DAX- Risk' | Measures: Open Risks and Issues, Open Risks and issues trend, RAG Risks, Total Risks & Issues
+TABLE: 'DIM - SecondaryCalendar' | Columns: Reporting Date
+TABLE: 'DIM - WBS L2 Programme' | Columns: Programme
+TABLE: 'DIM - WBS L3 Project' | Columns: Level 3 Project, Programme, Project Name
+TABLE: 'Design Comments Status' | Columns: Severity, Stage, Status | Measures: Count of comments current month, RAG Design, Total Closed Comments To date, Total Design Comments To date
+TABLE: 'E&S Environmental Matrix' | Columns: Group category, Key Environmental & Sustainability Issues / Actions | Measures: Actual Score Current, E&S max score, Planned Score Current, RAG Current E&S
+TABLE: 'E&S Environmental Targets' | Columns: Group category, Target Short Name
+TABLE: 'GIS Polygons' | Columns: Level 3 Project, Milestone, Programme Name, Project Code, Stage, UniqueKey, id | Measures: SPI (Map by UniqueKey)
+TABLE: 'H&S HSWMetrics' | Columns: KPI | Measures: Cumulative AFR, Cumulative sum H&S, Lost workday cases in Period, Man Hours cumulative, Manpower in Period, RAG HSW AFR, Sum Value Current Month HS card, Sum Value HS, Sum Value HS card
+TABLE: 'Interface Data' | Columns: Category, Delivering Programme, IAF ID, IAF Status, Interface Description, Receiving Programme, Stakeholder Name | Measures: Number of Interfaces Actual cumulative, Number of Interfaces Planned cumulative, RAG interface % Actual over Planned
+TABLE: 'Procurement TES New' | Columns: Contract Description, Name of awarded contracted (Leave blank if not awarded) | Measures: % awarded, Actual awarded to date, Number of Procurement Packages, Procurement Packages Actual, Procurement Packages Planned, RAG Procurement
+TABLE: 'Procurement TES Stages' | Columns: Procurement Stage
+TABLE: 'Quality KPIS' | Columns: In Period Value | Measures: % Audit execution, % NCR Closed, Actual Audits cumulative, Actual Audits per Month, NCR's Closed cumulative, NCR's Raised (accumulative), NCR's Raised (monthly), Plan Audits cumulative, Planned Audits per Month, RAG Quality KPI
+TABLE: 'RAG Tolerances List' | Columns: AMBER, FORMULA, FUNCTION, GREEN, RED | Measures: RAG
+TABLE: 'RAG all levels' | Measures: Monthly Summary, SHC Commentary (Programme)
+TABLE: 'RiskandIssuesList' | Columns: Created/Closed, Current Score, Event, Node Name, Proximity, Record ID, Risk Type, Sub-Category, Treatment Status Summary, Value
+TABLE: 'Schedule - 1 RIBA Neighbourhood level' | Columns: Earliest Actual Start, Earliest Plan Start, Latest Actual Finish, Latest Plan Finish, Stage (Riba)
+TABLE: 'Schedule - roll up project level' | Columns: Earliest Actual Start, Earliest Plan Start, Latest Actual Finish, Latest Plan Finish
+TABLE: 'Schedule- MilestonesData' | Columns: Actual Finish date, Forecast Finish date, Plan Finish date, Project | Measures: Schedule variance Milestones
+TABLE: 'Schedule- MilestonesData Unpivot' | Columns: Attribute, End of Month, Project, Value | Measures: Cumulative Projects Milestones Actual, Cumulative Projects Milestones Forecast, Cumulative Projects Milestones Planned, Number of projects Actual Milestone, Number of projects Plan Milestone
+TABLE: 'Schedule- RIBA Stages Data' | Columns: Actual Finish date, Forecast Finish date, PlanFinish date | Measures: Planned Duration (Months), RAG Schedule Average Schedule RIBA 6 Variance, Schedule variance Riba
+TABLE: 'Stakeholder data' | Columns: Current Stage (MACI) calculated, Engagement Action, Influence, Interest, Next Stage MACI, Organisation Code and Name, Stakeholder Name, Success Rate, Type, UniqueIDStakeholder
+TABLE: 'Training Attendees' | Columns: Email of the Actual Attendee, Type of Organisation
+TABLE: 'Training Courses' | Measures: Actual Trainings to Date, Pending Trainings, Planned Trainings to Date, RAG Training, Total Planned trainings
+TABLE: 'Training Hours' | Columns: Training Hours, Type of Organisation
 
-Example 1 - single value:
+REPORT PAGES: Home, Executive Dashboard, Executive Summary (Function), Executive Summary (Projects), Earned Value Management, Cost & Commercial, Schedule Management, Risks & Issues Management, Health & Safety / Worker Welfare, Environmental & Sustainability, Procurement, Quality, Stakeholder Engagement, Change, Interface, Design, Training & Development, Gantt Chart
+
+DAX GENERATION RULES - follow exactly:
+1. Output ONLY raw DAX — no markdown, no backticks, no explanation
+2. Start every query with EVALUATE on the first line
+3. To reference a MEASURE use: EVALUATE ROW("Label", [MeasureName])
+4. To reference a COLUMN in a table use: 'Table Name'[Column Name]
+5. For grouped results: EVALUATE SUMMARIZECOLUMNS('Table'[Column], "Metric", [Measure])
+6. For simple measure values: EVALUATE ROW("CPI", [CPI Current Month To Date], "SPI", [SPI Current Month To Date])
+7. For lists/details: EVALUATE 'RiskandIssuesList'
+8. For filtered lists: EVALUATE CALCULATETABLE('RiskandIssuesList', 'RiskandIssuesList'[Treatment Status Summary] = "Open")
+
+EXAMPLES for this specific dataset:
+
+Q: What is the current CPI and SPI?
+A:
 EVALUATE
-ROW("Total Earned Value", SUM('Financial Data'[Earned Value]))
-
-Example 2 - grouped summary:
-EVALUATE
-SUMMARIZECOLUMNS(
-    'Projects'[Project Name],
-    "Earned Value", SUM('Financial Data'[Earned Value]),
-    "Planned Value", SUM('Financial Data'[Planned Value])
+ROW(
+    "CPI", [CPI Current Month To Date],
+    "SPI", [SPI Current Month To Date],
+    "EV", [EV (To Date)],
+    "PV", [PV (Cumulative)]
 )
 
-Example 3 - filtered by date:
+Q: How many open risks and issues are there?
+A:
+EVALUATE
+ROW("Open Risks and Issues", [Open Risks and Issues], "Total Risks and Issues", [Total Risks & Issues])
+
+Q: Show me all projects by programme
+A:
+EVALUATE
+SUMMARIZECOLUMNS(
+    'DIM - WBS L3 Project'[Programme],
+    'DIM - WBS L3 Project'[Project Name]
+)
+
+Q: What is the current budget vs forecast final cost?
+A:
+EVALUATE
+ROW(
+    "Current Budget", [00_Current Budget],
+    "Forecast Final Cost", [00_FFC Forecast Final Cost],
+    "Variance", [00_Variance FFC y CB]
+)
+
+Q: Show me open risks
+A:
 EVALUATE
 CALCULATETABLE(
-    SUMMARIZECOLUMNS(
-        'Projects'[Project Name],
-        "Contingency Drawdown", SUM('Financial Data'[Contingency Drawdown])
+    SELECTCOLUMNS('RiskandIssuesList',
+        "Risk", 'RiskandIssuesList'[Event],
+        "Type", 'RiskandIssuesList'[Risk Type],
+        "Score", 'RiskandIssuesList'[Current Score],
+        "Status", 'RiskandIssuesList'[Treatment Status Summary]
     ),
-    YEAR('Date'[Date]) = 2024,
-    MONTH('Date'[Date]) = 9
+    'RiskandIssuesList'[Treatment Status Summary] = "Open"
 )`;
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -1099,39 +1161,55 @@ async function executeDAX(daxQuery) {
 }
 
 async function discoverSchema() {
-  // Use the REST API tables endpoint — much more reliable than DAX INFO functions
-  const baseUrl = config.workspaceId
-    ? `https://api.powerbi.com/v1.0/myorg/groups/${config.workspaceId}/datasets/${config.datasetId}/tables`
-    : `https://api.powerbi.com/v1.0/myorg/datasets/${config.datasetId}/tables`;
+  // For regular PBIX datasets, use DAX INFO.TABLES() via executeQueries
+  const daxQueries = [
+    `EVALUATE SELECTCOLUMNS(FILTER(INFO.TABLES(), NOT([IsHidden])), "TableName", [Name])`,
+    `EVALUATE SELECTCOLUMNS(INFO.TABLES(), "TableName", [Name])`,
+    `EVALUATE INFO.TABLES()`
+  ];
 
-  const r = await fetch(baseUrl, {
-    method: 'GET',
-    headers: { 'Authorization': `Bearer ${pbiToken}` }
-  });
+  for (let i = 0; i < daxQueries.length; i++) {
+    try {
+      const r = await fetch(getPBIEndpoint(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${pbiToken}` },
+        body: JSON.stringify({ queries: [{ query: daxQueries[i] }], serializerSettings: { includeNulls: true } })
+      });
+      if (r.ok) {
+        const data = await r.json();
+        const rows = data.results[0].tables[0].rows;
+        if (!rows || rows.length === 0) continue;
 
-  if (!r.ok) {
-    const errData = await r.json();
-    throw new Error("Could not retrieve tables: " + (errData.error?.message || r.status));
+        // Extract table names — find string values that look like table names (not GUIDs, not numbers)
+        const guidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
+        const allNames = [];
+
+        rows.forEach(function(row) {
+          Object.values(row).forEach(function(val) {
+            if (typeof val === 'string' && val.length > 0 && !guidPattern.test(val) && isNaN(val)) {
+              allNames.push(val);
+            }
+          });
+        });
+
+        // Deduplicate and filter out system tables (starting with $ or DateTable)
+        const tableNames = [...new Set(allNames)].filter(function(n) {
+          return !n.startsWith('$') && !n.startsWith('LocalDate') && n !== 'True' && n !== 'False';
+        });
+
+        if (tableNames.length > 0) {
+          config.schemaContext = "Actual table names in this Power BI dataset: " + tableNames.join(', ');
+          config.tableNames = tableNames;
+          localStorage.setItem('pbi_chat_config', JSON.stringify(config));
+          // Return in a format compatible with display
+          return tableNames.map(function(n) { return { name: n, columns: [] }; });
+        }
+      }
+    } catch(e) { continue; }
   }
 
-  const data = await r.json();
-  const tables = data.value || [];
-
-  if (tables.length === 0) {
-    throw new Error("No tables found in dataset. You may need to publish to a shared workspace first.");
-  }
-
-  // Build rich schema context with table names AND column names
-  const schemaLines = tables.map(function(t) {
-    const cols = (t.columns || []).map(function(c) { return c.name; }).join(', ');
-    return "Table '" + t.name + "'" + (cols ? ": columns [" + cols + "]" : "");
-  });
-
-  config.schemaContext = "EXACT schema: " + schemaLines.join(" | ");
-  config.tableNames = tables.map(function(t) { return t.name; });
-  localStorage.setItem('pbi_chat_config', JSON.stringify(config));
-
-  return tables;
+  // If all DAX approaches fail, throw with helpful message
+  throw new Error("AUTO_DISCOVER_FAILED");
 }
 
 function formatResult(data) {
@@ -1248,3 +1326,4 @@ window.onload = loadConfig;
 </script>
 </body>
 </html>
+
