@@ -3,734 +3,211 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Project Data Assistant</title>
+<title>Mace Project Data Assistant</title>
 <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --navy: #0d1b2a;
-    --navy-mid: #132338;
-    --navy-light: #1a2f47;
-    --panel: #162033;
-    --border: rgba(255,255,255,0.07);
-    --teal: #00c4b4;
-    --teal-dim: rgba(0,196,180,0.15);
-    --teal-glow: rgba(0,196,180,0.4);
-    --gold: #f5c842;
-    --red: #ff6b6b;
-    --text: #e8edf2;
-    --text-dim: #6b8299;
-    --text-mid: #a0b4c8;
-    --user-bubble: #1e3a5f;
-    --radius: 12px;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    font-family: 'DM Sans', sans-serif;
-    background: var(--navy);
-    color: var(--text);
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  /* ── SETUP OVERLAY ── */
-  #setup-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(10,16,26,0.97);
-    backdrop-filter: blur(8px);
-    z-index: 100;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-  }
-
-  .setup-card {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 40px;
-    width: 100%;
-    max-width: 560px;
-    box-shadow: 0 40px 80px rgba(0,0,0,0.5);
-  }
-
-  .setup-logo {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 28px;
-  }
-
-  .setup-logo .icon {
-    width: 42px;
-    height: 42px;
-    background: var(--teal);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
-  }
-
-  .setup-logo h1 {
-    font-family: 'Syne', sans-serif;
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--text);
-  }
-
-  .setup-logo p {
-    font-size: 12px;
-    color: var(--text-dim);
-    margin-top: 1px;
-  }
-
-  .setup-card h2 {
-    font-family: 'Syne', sans-serif;
-    font-size: 24px;
-    font-weight: 800;
-    margin-bottom: 6px;
-  }
-
-  .setup-card > p {
-    color: var(--text-dim);
-    font-size: 13px;
-    margin-bottom: 28px;
-    line-height: 1.6;
-  }
-
-  .form-group {
-    margin-bottom: 14px;
-  }
-
-  .form-group label {
-    display: block;
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    margin-bottom: 6px;
-  }
-
-  .form-group input {
-    width: 100%;
-    background: var(--navy);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px 14px;
-    color: var(--text);
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-
-  .form-group input:focus {
-    border-color: var(--teal);
-  }
-
-  .form-group input::placeholder {
-    color: var(--text-dim);
-    opacity: 0.5;
-  }
-
-  .form-hint {
-    font-size: 11px;
-    color: var(--text-dim);
-    margin-top: 4px;
-    opacity: 0.7;
-  }
-
-  .section-divider {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--teal);
-    margin: 20px 0 14px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .section-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-  }
-
-  .btn-primary {
-    width: 100%;
-    margin-top: 24px;
-    padding: 13px;
-    background: var(--teal);
-    color: var(--navy);
-    border: none;
-    border-radius: 10px;
-    font-family: 'Syne', sans-serif;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-    letter-spacing: 0.02em;
-  }
-
-  .btn-primary:hover {
-    background: #00ddd0;
-    transform: translateY(-1px);
-    box-shadow: 0 8px 24px var(--teal-glow);
-  }
-
-  /* ── HEADER ── */
-  header {
-    background: var(--panel);
-    border-bottom: 1px solid var(--border);
-    padding: 0 24px;
-    height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-shrink: 0;
-  }
-
-  .header-left {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-
-  .header-icon {
-    width: 34px;
-    height: 34px;
-    background: var(--teal);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    flex-shrink: 0;
-  }
-
-  .header-title {
-    font-family: 'Syne', sans-serif;
-    font-size: 15px;
-    font-weight: 700;
-  }
-
-  .header-sub {
-    font-size: 11px;
-    color: var(--text-dim);
-    margin-top: 1px;
-  }
-
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--teal);
-    box-shadow: 0 0 8px var(--teal-glow);
-    animation: pulse 2s infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
-
-  .status-text {
-    font-size: 12px;
-    color: var(--text-dim);
-  }
-
-  .btn-settings {
-    background: var(--navy-light);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 6px 12px;
-    color: var(--text-dim);
-    font-size: 12px;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  .btn-settings:hover {
-    border-color: var(--teal);
-    color: var(--teal);
-  }
-
-  /* ── MAIN LAYOUT ── */
-  .main {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
-  }
-
-  /* ── SIDEBAR ── */
-  .sidebar {
-    width: 240px;
-    background: var(--panel);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
-    overflow-y: auto;
-  }
-
-  .sidebar-section {
-    padding: 16px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .sidebar-label {
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    margin-bottom: 10px;
-  }
-
-  .suggestion-chip {
-    display: block;
-    width: 100%;
-    text-align: left;
-    background: var(--navy);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 9px 12px;
-    color: var(--text-mid);
-    font-size: 12px;
-    cursor: pointer;
-    margin-bottom: 6px;
-    transition: all 0.2s;
-    line-height: 1.4;
-  }
-
-  .suggestion-chip:hover {
-    border-color: var(--teal);
-    color: var(--text);
-    background: var(--teal-dim);
-  }
-
-  .suggestion-chip:last-child { margin-bottom: 0; }
-
-  .kpi-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-
-  .kpi-card {
-    background: var(--navy);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 10px;
-  }
-
-  .kpi-label {
-    font-size: 10px;
-    color: var(--text-dim);
-    margin-bottom: 4px;
-  }
-
-  .kpi-value {
-    font-family: 'DM Mono', monospace;
-    font-size: 16px;
-    font-weight: 500;
-    color: var(--teal);
-  }
-
-  /* ── CHAT AREA ── */
-  .chat-wrapper {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  #chat-messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 24px;
-    scroll-behavior: smooth;
-  }
-
-  #chat-messages::-webkit-scrollbar { width: 4px; }
-  #chat-messages::-webkit-scrollbar-track { background: transparent; }
-  #chat-messages::-webkit-scrollbar-thumb { background: var(--navy-light); border-radius: 2px; }
-
-  /* ── MESSAGES ── */
-  .message {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 20px;
-    animation: fadeUp 0.3s ease forwards;
-  }
-
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .message.user { flex-direction: row-reverse; }
-
-  .avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    flex-shrink: 0;
-    margin-top: 2px;
-  }
-
-  .message.assistant .avatar { background: var(--teal); color: var(--navy); }
-  .message.user .avatar { background: var(--user-bubble); color: var(--teal); border: 1px solid var(--teal); }
-
-  .bubble {
-    max-width: 75%;
-    padding: 12px 16px;
-    border-radius: var(--radius);
-    font-size: 14px;
-    line-height: 1.6;
-  }
-
-  .message.assistant .bubble {
-    background: var(--navy-mid);
-    border: 1px solid var(--border);
-    border-top-left-radius: 4px;
-  }
-
-  .message.user .bubble {
-    background: var(--user-bubble);
-    border: 1px solid rgba(0,196,180,0.2);
-    border-top-right-radius: 4px;
-    color: var(--text);
-  }
-
-  .bubble-meta {
-    font-size: 10px;
-    color: var(--text-dim);
-    margin-top: 6px;
-    opacity: 0.7;
-  }
-
-  /* ── RESULT TABLE ── */
-  .result-table-wrap {
-    margin-top: 12px;
-    overflow-x: auto;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-  }
-
-  .result-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
-    font-family: 'DM Mono', monospace;
-  }
-
-  .result-table th {
-    background: var(--navy-light);
-    color: var(--teal);
-    padding: 8px 12px;
-    text-align: left;
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    border-bottom: 1px solid var(--border);
-    white-space: nowrap;
-  }
-
-  .result-table td {
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--border);
-    color: var(--text-mid);
-    white-space: nowrap;
-  }
-
-  .result-table tr:last-child td { border-bottom: none; }
-  .result-table tr:hover td { background: var(--navy-light); }
-
-  /* ── DAX BLOCK ── */
-  .dax-block {
-    margin-top: 10px;
-    background: var(--navy);
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--teal);
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    color: var(--text-dim);
-    white-space: pre-wrap;
-    word-break: break-all;
-  }
-
-  .dax-label {
-    font-size: 10px;
-    color: var(--teal);
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    margin-bottom: 4px;
-  }
-
-  /* ── TYPING INDICATOR ── */
-  .typing-indicator {
-    display: flex;
-    gap: 4px;
-    align-items: center;
-    padding: 4px 0;
-  }
-
-  .typing-indicator span {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--teal);
-    animation: bounce 1.2s infinite;
-  }
-
-  .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
-  .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
-
-  @keyframes bounce {
-    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-    30% { transform: translateY(-6px); opacity: 1; }
-  }
-
-  /* ── WELCOME ── */
-  .welcome {
-    text-align: center;
-    padding: 60px 20px;
-    opacity: 0.9;
-  }
-
-  .welcome-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
-  }
-
-  .welcome h2 {
-    font-family: 'Syne', sans-serif;
-    font-size: 22px;
-    font-weight: 800;
-    margin-bottom: 8px;
-  }
-
-  .welcome p {
-    font-size: 14px;
-    color: var(--text-dim);
-    max-width: 380px;
-    margin: 0 auto;
-    line-height: 1.6;
-  }
-
-  /* ── INPUT AREA ── */
-  .input-area {
-    padding: 16px 24px 20px;
-    background: var(--panel);
-    border-top: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-
-  .input-wrap {
-    display: flex;
-    gap: 10px;
-    align-items: flex-end;
-    background: var(--navy);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 10px 14px;
-    transition: border-color 0.2s;
-  }
-
-  .input-wrap:focus-within {
-    border-color: var(--teal);
-  }
-
-  #user-input {
-    flex: 1;
-    background: transparent;
-    border: none;
-    outline: none;
-    color: var(--text);
-    font-family: 'DM Sans', sans-serif;
-    font-size: 14px;
-    resize: none;
-    min-height: 22px;
-    max-height: 120px;
-    line-height: 1.5;
-  }
-
-  #user-input::placeholder { color: var(--text-dim); opacity: 0.6; }
-
-  #send-btn {
-    width: 36px;
-    height: 36px;
-    background: var(--teal);
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    transition: all 0.2s;
-    color: var(--navy);
-    font-size: 16px;
-  }
-
-  #send-btn:hover:not(:disabled) {
-    background: #00ddd0;
-    box-shadow: 0 4px 16px var(--teal-glow);
-  }
-
-  #send-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-
-  .input-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 8px;
-    padding: 0 2px;
-  }
-
-  .input-hint {
-    font-size: 11px;
-    color: var(--text-dim);
-    opacity: 0.6;
-  }
-
-  #auth-btn {
-    background: var(--teal-dim);
-    border: 1px solid var(--teal);
-    border-radius: 8px;
-    padding: 6px 14px;
-    color: var(--teal);
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-
-  #auth-btn:hover { background: var(--teal); color: var(--navy); }
-
-  .error-msg {
-    background: rgba(255,107,107,0.1);
-    border: 1px solid rgba(255,107,107,0.3);
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-size: 13px;
-    color: var(--red);
-    margin-top: 8px;
-  }
+:root {
+  --navy: #0d1b2a; --navy-mid: #132338; --navy-light: #1a2f47;
+  --panel: #162033; --border: rgba(255,255,255,0.07);
+  --teal: #00c4b4; --teal-dim: rgba(0,196,180,0.15); --teal-glow: rgba(0,196,180,0.4);
+  --gold: #f5c842; --red: #ff6b6b;
+  --text: #e8edf2; --text-dim: #6b8299; --text-mid: #a0b4c8;
+  --user-bubble: #1e3a5f; --radius: 12px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{
+  font-family:'DM Sans',sans-serif;background:var(--navy);color:var(--text);
+  height:100%;width:100%;overflow:hidden;display:flex;flex-direction:column;
+  position:fixed;top:0;left:0;right:0;bottom:0;
+}
+
+/* SETUP OVERLAY */
+#setup-overlay{
+  position:fixed;inset:0;background:rgba(10,16,26,0.97);backdrop-filter:blur(8px);
+  z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;
+}
+.setup-card{
+  background:var(--panel);border:1px solid var(--border);border-radius:20px;
+  padding:36px;width:100%;max-width:520px;box-shadow:0 40px 80px rgba(0,0,0,0.5);
+  max-height:90vh;overflow-y:auto;
+}
+.setup-card h2{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;margin-bottom:6px;}
+.setup-card>p{color:var(--text-dim);font-size:13px;margin-bottom:24px;line-height:1.6;}
+.form-group{margin-bottom:12px;}
+.form-group label{display:block;font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:5px;}
+.form-group input{width:100%;background:var(--navy);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;outline:none;transition:border-color .2s;}
+.form-group input:focus{border-color:var(--teal);}
+.form-group input::placeholder{color:var(--text-dim);opacity:.5;}
+.form-hint{font-size:11px;color:var(--text-dim);margin-top:3px;opacity:.7;}
+.section-divider{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);margin:18px 0 12px;display:flex;align-items:center;gap:10px;}
+.section-divider::after{content:'';flex:1;height:1px;background:var(--border);}
+.btn-primary{width:100%;margin-top:20px;padding:12px;background:var(--teal);color:var(--navy);border:none;border-radius:10px;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;}
+.btn-primary:hover{background:#00ddd0;transform:translateY(-1px);box-shadow:0 8px 24px var(--teal-glow);}
+
+/* HEADER */
+header{
+  background:var(--panel);border-bottom:1px solid var(--border);
+  padding:0 16px;height:50px;display:flex;align-items:center;
+  justify-content:space-between;flex-shrink:0;
+}
+.header-left{display:flex;align-items:center;gap:10px;}
+.header-divider{width:1px;height:26px;background:rgba(255,255,255,0.15);}
+.header-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;}
+.header-sub{font-size:10px;color:var(--text-dim);margin-top:1px;}
+.header-right{display:flex;align-items:center;gap:10px;}
+.status-dot{width:7px;height:7px;border-radius:50%;background:#6b8299;}
+.status-dot.connected{background:var(--teal);box-shadow:0 0 8px var(--teal-glow);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+.status-text{font-size:11px;color:var(--text-dim);}
+.btn-settings{background:var(--navy-light);border:1px solid var(--border);border-radius:7px;padding:5px 10px;color:var(--text-dim);font-size:11px;cursor:pointer;transition:all .2s;}
+.btn-settings:hover{border-color:var(--teal);color:var(--teal);}
+
+/* MAIN LAYOUT */
+.main{display:flex;flex:1;overflow:hidden;min-height:0;}
+
+/* SIDEBAR */
+.sidebar{
+  width:190px;background:var(--panel);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto;
+}
+@media(max-width:650px){.sidebar{display:none;}}
+.sidebar-section{padding:12px;border-bottom:1px solid var(--border);}
+.sidebar-label{font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;}
+.suggestion-chip{
+  display:block;width:100%;text-align:left;background:var(--navy);
+  border:1px solid var(--border);border-radius:7px;padding:7px 10px;
+  color:var(--text-mid);font-size:11px;cursor:pointer;margin-bottom:5px;
+  transition:all .2s;line-height:1.4;
+}
+.suggestion-chip:hover{border-color:var(--teal);color:var(--text);background:var(--teal-dim);}
+
+/* CHAT AREA */
+.chat-wrapper{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;}
+#chat-messages{flex:1;overflow-y:auto;padding:16px;scroll-behavior:smooth;}
+#chat-messages::-webkit-scrollbar{width:3px;}
+#chat-messages::-webkit-scrollbar-thumb{background:var(--navy-light);border-radius:2px;}
+
+/* MESSAGES */
+.message{display:flex;gap:10px;margin-bottom:16px;animation:fadeUp .3s ease forwards;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.message.user{flex-direction:row-reverse;}
+.avatar{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;margin-top:2px;}
+.message.assistant .avatar{background:var(--teal);color:var(--navy);}
+.message.user .avatar{background:var(--user-bubble);color:var(--teal);border:1px solid var(--teal);}
+.bubble{max-width:78%;padding:10px 14px;border-radius:var(--radius);font-size:13px;line-height:1.6;}
+.message.assistant .bubble{background:var(--navy-mid);border:1px solid var(--border);border-top-left-radius:4px;}
+.message.user .bubble{background:var(--user-bubble);border:1px solid rgba(0,196,180,0.2);border-top-right-radius:4px;}
+.bubble-meta{font-size:9px;color:var(--text-dim);margin-top:5px;opacity:.7;}
+
+/* TABLE */
+.result-table-wrap{margin-top:10px;overflow-x:auto;border-radius:7px;border:1px solid var(--border);}
+.result-table{width:100%;border-collapse:collapse;font-size:11px;font-family:'DM Mono',monospace;}
+.result-table th{background:var(--navy-light);color:var(--teal);padding:7px 10px;text-align:left;font-size:9px;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap;}
+.result-table td{padding:7px 10px;border-bottom:1px solid var(--border);color:var(--text-mid);white-space:nowrap;}
+.result-table tr:last-child td{border-bottom:none;}
+.result-table tr:hover td{background:var(--navy-light);}
+
+/* DAX BLOCK */
+.dax-block{margin-top:8px;background:var(--navy);border:1px solid var(--border);border-left:3px solid var(--teal);border-radius:7px;padding:8px 12px;font-family:'DM Mono',monospace;font-size:10px;color:var(--text-dim);white-space:pre-wrap;word-break:break-all;}
+.dax-label{font-size:9px;color:var(--teal);font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px;}
+
+/* TYPING */
+.typing-indicator{display:flex;gap:4px;align-items:center;padding:4px 0;}
+.typing-indicator span{width:5px;height:5px;border-radius:50%;background:var(--teal);animation:bounce 1.2s infinite;}
+.typing-indicator span:nth-child(2){animation-delay:.2s;}
+.typing-indicator span:nth-child(3){animation-delay:.4s;}
+@keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.4;}30%{transform:translateY(-5px);opacity:1;}}
+
+/* WELCOME */
+.welcome{text-align:center;padding:40px 20px;opacity:.9;}
+.welcome-icon{font-size:40px;margin-bottom:12px;}
+.welcome h2{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;margin-bottom:8px;}
+.welcome p{font-size:13px;color:var(--text-dim);max-width:340px;margin:0 auto;line-height:1.6;}
+
+/* INPUT */
+.input-area{padding:12px 16px 14px;background:var(--panel);border-top:1px solid var(--border);flex-shrink:0;}
+.input-wrap{display:flex;gap:8px;align-items:flex-end;background:var(--navy);border:1px solid var(--border);border-radius:12px;padding:8px 12px;transition:border-color .2s;}
+.input-wrap:focus-within{border-color:var(--teal);}
+#user-input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;resize:none;min-height:20px;max-height:100px;line-height:1.5;}
+#user-input::placeholder{color:var(--text-dim);opacity:.6;}
+#send-btn{width:32px;height:32px;background:var(--teal);border:none;border-radius:7px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;color:var(--navy);font-size:14px;}
+#send-btn:hover:not(:disabled){background:#00ddd0;box-shadow:0 4px 14px var(--teal-glow);}
+#send-btn:disabled{opacity:.4;cursor:not-allowed;}
+.input-footer{display:flex;align-items:center;justify-content:space-between;margin-top:6px;padding:0 2px;}
+.input-hint{font-size:10px;color:var(--text-dim);opacity:.6;}
+#auth-btn{background:var(--teal-dim);border:1px solid var(--teal);border-radius:7px;padding:5px 12px;color:var(--teal);font-size:11px;font-weight:500;cursor:pointer;transition:all .2s;}
+#auth-btn:hover{background:var(--teal);color:var(--navy);}
 </style>
 </head>
 <body>
 
-<!-- ── SETUP OVERLAY ── -->
+<!-- SETUP OVERLAY -->
 <div id="setup-overlay">
   <div class="setup-card">
-    <div class="setup-logo">
-      <div class="icon">📊</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+      <img src="data:image/png;base64,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" style="height:30px;width:auto;" alt="Mace">
+      <div style="width:1px;height:24px;background:rgba(255,255,255,0.15);"></div>
       <div>
-        <h1>Project Data Assistant</h1>
-        <p>Powered by Claude AI + Power BI</p>
+        <div style="font-family:'Syne',sans-serif;font-size:15px;font-weight:700;">Project Data Assistant</div>
+        <div style="font-size:11px;color:var(--text-dim);">Powered by Claude AI + Power BI</div>
       </div>
     </div>
     <h2>Configuration</h2>
-    <p>Enter your credentials to connect to your Power BI dataset. These are stored locally in your browser only.</p>
-
+    <p>Enter your credentials once. These are stored locally in your browser.</p>
     <div class="section-divider">Azure AD</div>
-
     <div class="form-group">
       <label>Client ID (Application ID)</label>
       <input type="text" id="cfg-client-id" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
-      <div class="form-hint">From your Azure App Registration → Overview</div>
+      <div class="form-hint">Azure App Registration → Overview</div>
     </div>
-
     <div class="form-group">
       <label>Tenant ID (Directory ID)</label>
       <input type="text" id="cfg-tenant-id" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
-      <div class="form-hint">From your Azure App Registration → Overview</div>
+      <div class="form-hint">Azure App Registration → Overview</div>
     </div>
-
     <div class="section-divider">Power BI</div>
-
     <div class="form-group">
       <label>Dataset ID</label>
-      <input type="text" id="cfg-dataset-id" placeholder="dce71471-cc64-4401-b13b-4e519a52d8d6">
-      <div class="form-hint">From Power BI Service → Dataset Settings URL</div>
+      <input type="text" id="cfg-dataset-id" value="dce71471-cc64-4401-b13b-4e519a52d8d6">
     </div>
-
     <div class="form-group">
-      <label>Workspace ID <span style="color:var(--text-dim);font-size:10px">(leave blank for My Workspace)</span></label>
-      <input type="text" id="cfg-workspace-id" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (optional)">
-      <div class="form-hint">From Power BI Service URL after /groups/ — leave blank if using My Workspace</div>
+      <label>Workspace ID <span style="color:var(--text-dim);font-size:10px">(optional)</span></label>
+      <input type="text" id="cfg-workspace-id" placeholder="Leave blank for My Workspace">
     </div>
-
     <div class="section-divider">Claude AI</div>
-
     <div class="form-group">
       <label>Claude API Key</label>
       <input type="password" id="cfg-claude-key" placeholder="sk-ant-...">
-      <div class="form-hint">From console.anthropic.com → API Keys</div>
+      <div class="form-hint">console.anthropic.com → API Keys</div>
     </div>
-
-    <div class="form-group">
-      <label>Report Context <span style="color:var(--text-dim);font-size:10px">(helps AI understand your data)</span></label>
-      <input type="text" id="cfg-context" placeholder="e.g. Project portfolio data including EVM, schedule, cost, risk, procurement">
-    </div>
-
     <button class="btn-primary" onclick="saveConfig()">Connect & Launch →</button>
   </div>
 </div>
 
-<!-- ── HEADER ── -->
+<!-- HEADER -->
 <header>
   <div class="header-left">
-    <div class="header-icon" style="background:transparent;border-radius:0;width:auto;padding:0;"><img src="data:image/png;base64,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" style="height:32px;width:auto;" alt="Mace"></div>
-    <div style="width:1px;height:28px;background:rgba(255,255,255,0.15);margin:0 6px;"></div>
+    <img src="data:image/png;base64,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" style="height:30px;width:auto;" alt="Mace">
+    <div class="header-divider"></div>
     <div>
       <div class="header-title">Project Data Assistant</div>
       <div class="header-sub">Monthly Portfolio Progress Report · AI Powered</div>
     </div>
   </div>
   <div class="header-right">
-    <div class="status-dot" id="status-dot" style="background:#6b8299;box-shadow:none"></div>
+    <div class="status-dot" id="status-dot"></div>
     <div class="status-text" id="status-text">Not connected</div>
+    <button id="auth-btn" onclick="authenticate()" style="display:none">🔐 Connect to Power BI</button>
     <button class="btn-settings" onclick="document.getElementById('setup-overlay').style.display='flex'">⚙ Settings</button>
   </div>
 </header>
 
-<!-- ── MAIN ── -->
+<!-- MAIN -->
 <div class="main">
-
-  <!-- SIDEBAR -->
   <div class="sidebar">
     <div class="sidebar-section">
-      <div class="sidebar-label">Suggested Questions</div>
+      <div class="sidebar-label">Executive Dashboard</div>
       <button class="suggestion-chip" onclick="sendSuggestion(this.textContent)">Give me the full Executive Dashboard summary</button>
       <button class="suggestion-chip" onclick="sendSuggestion(this.textContent)">Show me the Executive Dashboard EV metrics</button>
       <button class="suggestion-chip" onclick="sendSuggestion(this.textContent)">What is the budget and cost variance?</button>
@@ -740,99 +217,93 @@
       <button class="suggestion-chip" onclick="sendSuggestion(this.textContent)">What is the quality performance?</button>
       <button class="suggestion-chip" onclick="sendSuggestion(this.textContent)">What is the H&S performance?</button>
     </div>
-
     <div class="sidebar-section">
       <div class="sidebar-label">Report Areas</div>
       <button class="suggestion-chip" onclick="sendSuggestion('Give me a summary of Earned Value Management metrics')">📈 Earned Value</button>
-      <button class="suggestion-chip" onclick="sendSuggestion('Summarise the schedule performance across all projects')">📅 Schedule</button>
-      <button class="suggestion-chip" onclick="sendSuggestion('What are the key cost and commercial metrics?')">💰 Cost & Commercial</button>
-      <button class="suggestion-chip" onclick="sendSuggestion('Show me the top open risks and issues')">⚠️ Risk & Issues</button>
+      <button class="suggestion-chip" onclick="sendSuggestion('Show me the cost and commercial summary')">💰 Cost & Commercial</button>
+      <button class="suggestion-chip" onclick="sendSuggestion('Show me open risks and issues list')">⚠️ Risk & Issues</button>
       <button class="suggestion-chip" onclick="sendSuggestion('What is the current H&S performance?')">🦺 Health & Safety</button>
-      <button class="suggestion-chip" onclick="sendSuggestion('Summarise quality audit execution rates')">✅ Quality</button>
+      <button class="suggestion-chip" onclick="sendSuggestion('Show me procurement packages and award status')">📦 Procurement</button>
+      <button class="suggestion-chip" onclick="sendSuggestion('What is the quality audit execution rate?')">✅ Quality</button>
     </div>
   </div>
 
-  <!-- CHAT -->
   <div class="chat-wrapper">
     <div id="chat-messages">
       <div class="welcome">
         <div class="welcome-icon">💬</div>
         <h2>Ask anything about your projects</h2>
-        <p>Connect your Power BI account to start querying your portfolio data using plain English. Try a suggested question or type your own.</p>
+        <p>Connect to Power BI then ask questions in plain English. Try a suggested question from the sidebar or type your own.</p>
       </div>
     </div>
-
     <div class="input-area">
       <div class="input-wrap">
-        <textarea id="user-input" rows="1" placeholder="Ask about your project data... e.g. What is the total cost variance across all projects?" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <textarea id="user-input" rows="1" placeholder="Ask about your project data... e.g. What is the current CPI and SPI?" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
         <button id="send-btn" onclick="sendMessage()" title="Send">➤</button>
       </div>
       <div class="input-footer">
-        <span class="input-hint">Press Enter to send · Shift+Enter for new line</span>
-        <button id="auth-btn" onclick="authenticate()" style="display:none">🔐 Connect to Power BI</button>
+        <span class="input-hint">Enter to send · Shift+Enter for new line</span>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-// ── CONFIG ──
 let config = {};
 let msalInstance = null;
 let pbiToken = null;
 let isAuthenticated = false;
 
+// ── CONFIGURATION ──
 function saveConfig() {
   const clientId = document.getElementById('cfg-client-id').value.trim();
   const tenantId = document.getElementById('cfg-tenant-id').value.trim();
   const datasetId = document.getElementById('cfg-dataset-id').value.trim();
   const workspaceId = document.getElementById('cfg-workspace-id').value.trim();
   const claudeKey = document.getElementById('cfg-claude-key').value.trim();
-  const context = document.getElementById('cfg-context').value.trim();
-
   if (!clientId || !tenantId || !datasetId || !claudeKey) {
-    alert('Please fill in Client ID, Tenant ID, Dataset ID, and Claude API Key.');
+    alert('Please fill in Client ID, Tenant ID, Dataset ID and Claude API Key.');
     return;
   }
-
-  config = { clientId, tenantId, datasetId, workspaceId, claudeKey, context };
-  localStorage.setItem('pbi_chat_config', JSON.stringify(config));
-
+  config = { clientId, tenantId, datasetId, workspaceId, claudeKey };
+  try { localStorage.setItem('pbi_chat_config', JSON.stringify(config)); } catch(e) {}
   initMsal();
   document.getElementById('setup-overlay').style.display = 'none';
   document.getElementById('auth-btn').style.display = 'block';
-
-  addMessage('assistant', `✅ Configuration saved! Click **Connect to Power BI** to authenticate and start querying your data.\n\nYour dataset is connected and I'm ready to translate your questions into Power BI queries.`);
+  addMessage('assistant', '✅ Configuration saved! Click **Connect to Power BI** to authenticate and start querying your portfolio data.');
 }
 
 function loadConfig() {
-  const saved = localStorage.getItem('pbi_chat_config');
-  if (saved) {
-    config = JSON.parse(saved);
-    document.getElementById('cfg-client-id').value = config.clientId || '';
-    document.getElementById('cfg-tenant-id').value = config.tenantId || '';
-    document.getElementById('cfg-dataset-id').value = config.datasetId || '';
-    document.getElementById('cfg-workspace-id').value = config.workspaceId || '';
-    document.getElementById('cfg-claude-key').value = config.claudeKey || '';
-    document.getElementById('cfg-context').value = config.context || '';
-
-    if (config.clientId && config.tenantId) {
-      initMsal();
-      document.getElementById('setup-overlay').style.display = 'none';
-      document.getElementById('auth-btn').style.display = 'block';
-      addMessage('assistant', `Welcome back! 👋 Click **Connect to Power BI** to authenticate and begin querying your project data.`);
+  try {
+    const saved = localStorage.getItem('pbi_chat_config');
+    if (saved) {
+      config = JSON.parse(saved);
+      document.getElementById('cfg-client-id').value = config.clientId || '';
+      document.getElementById('cfg-tenant-id').value = config.tenantId || '';
+      document.getElementById('cfg-dataset-id').value = config.datasetId || 'dce71471-cc64-4401-b13b-4e519a52d8d6';
+      document.getElementById('cfg-workspace-id').value = config.workspaceId || '';
+      document.getElementById('cfg-claude-key').value = config.claudeKey || '';
+      if (config.clientId && config.tenantId && config.claudeKey) {
+        initMsal();
+        document.getElementById('setup-overlay').style.display = 'none';
+        document.getElementById('auth-btn').style.display = 'block';
+        addMessage('assistant', '👋 Welcome back! Click **Connect to Power BI** to authenticate and begin querying your portfolio data.');
+        return;
+      }
     }
-  }
+  } catch(e) {}
+  // Show setup overlay if no config
+  document.getElementById('setup-overlay').style.display = 'flex';
 }
 
 function initMsal() {
   const msalConfig = {
     auth: {
       clientId: config.clientId,
-      authority: `https://login.microsoftonline.com/${config.tenantId}`,
-      redirectUri: window.location.href.split('?')[0],
+      authority: 'https://login.microsoftonline.com/' + config.tenantId,
+      redirectUri: window.location.href.split('?')[0].split('#')[0],
     },
-    cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: false }
+    cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: true }
   };
   msalInstance = new msal.PublicClientApplication(msalConfig);
 }
@@ -841,8 +312,10 @@ async function authenticate() {
   if (!msalInstance) { alert('Please configure settings first.'); return; }
   try {
     const response = await msalInstance.loginPopup({
-      scopes: ['https://analysis.windows.net/powerbi/api/Dataset.Read.All',
-               'https://analysis.windows.net/powerbi/api/Report.Read.All']
+      scopes: [
+        'https://analysis.windows.net/powerbi/api/Dataset.Read.All',
+        'https://analysis.windows.net/powerbi/api/Report.Read.All'
+      ]
     });
     const tokenResponse = await msalInstance.acquireTokenSilent({
       scopes: ['https://analysis.windows.net/powerbi/api/Dataset.Read.All'],
@@ -852,10 +325,9 @@ async function authenticate() {
     isAuthenticated = true;
     setStatus(true);
     document.getElementById('auth-btn').style.display = 'none';
-    addMessage('assistant', `🔐 Successfully connected to Power BI!\n\nI can now query your project dataset directly. Try asking me something like:\n• *"What is the total earned value?"*\n• *"Which projects have the highest cost variance?"*\n• *"How many open risks are there?"*`);
-  } catch (err) {
-    console.error(err);
-    addMessage('assistant', `❌ Authentication failed: ${err.message}\n\nPlease check your Client ID and Tenant ID in Settings.`);
+    addMessage('assistant', '🔐 **Successfully connected to Power BI!**\n\nI can now query your portfolio data directly. Try asking:\n• *"Give me the full Executive Dashboard summary"*\n• *"How many open risks are there?"*\n• *"What is the current CPI and SPI?"*');
+  } catch(err) {
+    addMessage('assistant', '❌ Authentication failed: ' + err.message + '\n\nPlease check your Client ID and Tenant ID in Settings.');
   }
 }
 
@@ -863,31 +335,22 @@ function setStatus(connected) {
   const dot = document.getElementById('status-dot');
   const text = document.getElementById('status-text');
   if (connected) {
-    dot.style.background = 'var(--teal)';
-    dot.style.boxShadow = '0 0 8px var(--teal-glow)';
+    dot.className = 'status-dot connected';
     text.textContent = 'Connected';
   } else {
-    dot.style.background = '#6b8299';
-    dot.style.boxShadow = 'none';
+    dot.className = 'status-dot';
     text.textContent = 'Not connected';
   }
 }
 
 // ── CHAT ──
-let chatHistory = [];
-
 function handleKey(e) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
-  }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 }
-
 function autoResize(el) {
   el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
 }
-
 function sendSuggestion(text) {
   document.getElementById('user-input').value = text;
   sendMessage();
@@ -897,275 +360,156 @@ async function sendMessage() {
   const input = document.getElementById('user-input');
   const question = input.value.trim();
   if (!question) return;
-
   input.value = '';
   input.style.height = 'auto';
   document.getElementById('send-btn').disabled = true;
-
-  // Clear welcome
   const welcome = document.querySelector('.welcome');
   if (welcome) welcome.remove();
-
   addMessage('user', question);
-  chatHistory.push({ role: 'user', content: question });
 
   const typingId = showTyping();
-
   try {
-    if (!config.claudeKey) {
-      throw new Error('No Claude API key configured. Please open Settings.');
-    }
+    if (!config.claudeKey) throw new Error('No Claude API key. Please open Settings.');
 
-    // Check for schema discovery request
-    // Check if user is manually providing table names
-    const manualTableMatch = question.match(/my tables are(?:\s+called)?\s+(.+)/i);
-    if (manualTableMatch) {
-      const tableList = manualTableMatch[1];
-      config.schemaContext = "User confirmed their table names are: " + tableList;
-      localStorage.setItem('pbi_chat_config', JSON.stringify(config));
+    // Schema keywords — show hardcoded schema
+    const schemaKW = ['what tables','table names','my schema','show me the tables','discover schema'];
+    if (schemaKW.some(k => question.toLowerCase().includes(k))) {
       removeTyping(typingId);
-      addMessage('assistant', '✅ Got it! I will use these table names in all future DAX queries: **' + tableList + '**\n\nNow try asking a question about your data.');
+      addMessage('assistant', '📋 **Your dataset schema (40 tables) has been read from your PBIX file.**\n\nKey tables for the Executive Dashboard:\n\n• **DAX - Cost & EV** — CPI, SPI, EV, PV, Actual Cost, Forecasting Accuracy\n• **DAX - Costos** — Current Budget, Forecast Final Cost, Cost Variance\n• **DAX- Risk** — Open Risks and Issues, Total Risks & Issues\n• **RiskandIssuesList** — Event, Risk Type, Current Score, Treatment Status\n• **H&S HSWMetrics** — AFR, Loss Time Incidents, Man Hours\n• **Procurement TES New** — Number of Packages, % Awarded\n• **Quality KPIS** — % Audit Execution, % NCR Closed\n• **Change Data** — RFC VALUE (OMR), RFC Decision\n• **DIM - WBS L3 Project** — Project Name, Programme\n\n✅ This schema is embedded — just ask your questions directly!');
       document.getElementById('send-btn').disabled = false;
       return;
     }
 
-    const schemaKeywords = ['what tables', 'table names', 'my schema', 'what columns', 'dataset structure', 'show me the tables', 'discover schema'];
-    const isSchemaRequest = schemaKeywords.some(k => question.toLowerCase().includes(k));
-
-    if (isSchemaRequest) {
-      removeTyping(typingId);
-      const msg = '📋 **Your dataset schema has been read directly from your PBIX file. Here are all 40 tables:**\n\n' +
-        '**Earned Value & Cost**\n' +
-        '• DAX - Cost & EV — measures: EV, PV, CPI, SPI, EAC, CV, SV and more\n' +
-        '• DAX - Costos — measures: Current Budget, Forecast Final Cost, Variance, Contingency\n' +
-        '• Costos - Cashflow — measures: Cashflow Actual, Forecast, Planned (Cumulative)\n\n' +
-        '**Projects & WBS**\n' +
-        '• DIM - WBS L3 Project — columns: Project Name, Programme, Level 3 Project\n' +
-        '• DIM - WBS L2 Programme — columns: Programme\n' +
-        '• GIS Polygons — columns: Project Code, Stage, Milestone\n\n' +
-        '**Risk & Issues**\n' +
-        '• RiskandIssuesList — columns: Event, Risk Type, Current Score, Treatment Status Summary, Sub-Category\n' +
-        '• DAX- Risk — measures: Open Risks and Issues, Total Risks & Issues, RAG Risks\n\n' +
-        '**Schedule**\n' +
-        '• Schedule- MilestonesData — columns: Plan Finish date, Forecast Finish date, Actual Finish date, Project\n' +
-        '• Schedule- RIBA Stages Data — columns: PlanFinish date, Forecast Finish date, Actual Finish date\n' +
-        '• Schedule - roll up project level — columns: Earliest Plan Start, Latest Plan Finish, Earliest Actual Start\n\n' +
-        '**Health & Safety**\n' +
-        '• H&S HSWMetrics — columns: KPI | measures: Cumulative AFR, Man Hours cumulative, Lost workday cases in Period\n\n' +
-        '**Procurement**\n' +
-        '• Procurement TES New — columns: Contract Description | measures: % awarded, Number of Procurement Packages\n\n' +
-        '**Quality**\n' +
-        '• Quality KPIS — measures: % Audit execution, % NCR Closed, NCR\'s Raised (accumulative)\n\n' +
-        '**Change**\n' +
-        '• Change Data — columns: RFC VALUE (OMR), RFC SCHEDULE IMPACT (Days), Category of Change\n' +
-        '• Change status — measures: RAG Change Projects\n\n' +
-        '**Environmental**\n' +
-        '• E&S Environmental Matrix — columns: Group category | measures: Actual Score Current, RAG Current E&S\n\n' +
-        '**Stakeholders & Interfaces**\n' +
-        '• Stakeholder data — columns: Stakeholder Name, Influence, Interest, Current Stage (MACI) calculated\n' +
-        '• Interface Data — columns: IAF ID, IAF Status, Category | measures: Number of Interfaces Actual cumulative\n\n' +
-        '**Training**\n' +
-        '• Training Courses — measures: Actual Trainings to Date, Planned Trainings to Date, RAG Training\n' +
-        '• Training Hours — columns: Training Hours, Type of Organisation\n\n' +
-        '✅ **This schema is already embedded — just ask your questions directly!**';
-      addMessage('assistant', msg);
-      chatHistory.push({ role: 'assistant', content: msg });
-      document.getElementById('send-btn').disabled = false;
-      return;
-    }
-
-    // Step 1: Ask Claude to generate a DAX query
     const daxQuery = await generateDAX(question);
-
-    // Step 2: If authenticated, execute against Power BI
     let resultText = '';
     let tableHTML = '';
-    let rawDax = daxQuery;
+    let rows = [];
 
     if (isAuthenticated && pbiToken) {
       try {
         const result = await executeDAX(daxQuery);
-        const { summary, html, rows } = formatResult(result);
-        // Get chatty interpretation
+        const formatted = formatResult(result);
+        rows = formatted.rows;
+        tableHTML = formatted.html;
         try {
           const interpretation = await interpretResult(question, rows);
-          resultText = interpretation || summary;
-        } catch(e) {
-          resultText = summary;
-        }
-        tableHTML = html;
-      } catch (apiErr) {
-        resultText = "⚠️ " + apiErr.message;
+          resultText = interpretation || formatted.summary;
+        } catch(e) { resultText = formatted.summary; }
+      } catch(apiErr) {
+        resultText = '⚠️ ' + apiErr.message;
       }
     } else {
-      resultText = "ℹ️ Not connected to Power BI yet. Here is the DAX query that would answer your question — click **Connect to Power BI** to run it automatically.";
+      resultText = 'ℹ️ Not connected to Power BI yet. Click **Connect to Power BI** to run this query automatically. Here is the DAX that would answer your question:';
     }
 
     removeTyping(typingId);
+    addMessage('assistant', resultText, daxQuery, tableHTML);
 
-    const fullMsg = resultText;
-    const msgEl = addMessage('assistant', fullMsg, rawDax, tableHTML);
-    chatHistory.push({ role: 'assistant', content: fullMsg });
-
-  } catch (err) {
+  } catch(err) {
     removeTyping(typingId);
-    addMessage('assistant', `❌ Error: ${err.message}`);
+    addMessage('assistant', '❌ Error: ' + err.message);
   }
-
   document.getElementById('send-btn').disabled = false;
 }
 
+// ── DAX GENERATION ──
 async function generateDAX(question) {
-  const systemPrompt = `You are a Power BI DAX expert for a project portfolio management report (Monthly Portfolio Progress Report).
+  const systemPrompt = `You are a Power BI DAX expert for the Mace Monthly Portfolio Progress Report.
 
-CRITICAL: Use ONLY the exact table and measure names listed below. Never guess names.
+CRITICAL: Use ONLY the exact table and measure names listed. Never guess or invent names.
 
-EXECUTIVE DASHBOARD - EXACT VISUAL MAPPINGS (display label => DAX measure/column):
-- CPI => [DAX - Cost & EV].[CPI Current Month To Date]
-- SPI => [DAX - Cost & EV].[SPI Current Month To Date]
-- Planned Value (PV) => [DAX - Cost & EV].[PV (To Date) Current Month]
-- Earned Value (EV) => [DAX - Cost & EV].[EV (To Date) Current Month]
-- Actual Cost (AC) => [DAX - Cost & EV].[Total Cost of Work Done to Date (AC)]
-- EV Forecast in period => [DAX - Cost & EV].[EV Forecast current month]
-- EV in period => [DAX - Cost & EV].[EV obtenido en el mes]
-- Accuracy in period => [DAX - Cost & EV].[Forecasting Accuracy Current Month]
-- % Progress cumulative => [DAX - Cost & EV].[% Actual Complete]
-- Budget (in cost chart) => [DAX - Costos].[00_Current Budget]
-- Forecast Final Cost => [DAX - Costos].[00_FFC Forecast Final Cost]
-- Cost Variance => [DAX - Costos].[00_Variance FFC y CB]
-- Cost Variance % => [DAX - Costos].[00_Variance (%) FFC vs CB]
-- Open Threats => [DAX- Risk].[Open Risks and Issues] filtered by RiskandIssuesList[Risk Type] = 'a threat'
-- Open Issues => [DAX- Risk].[Open Risks and Issues] filtered by RiskandIssuesList[Risk Type] = 'an issue'
-- Open Opportunities => [DAX- Risk].[Open Risks and Issues] filtered by RiskandIssuesList[Risk Type] = 'an opportunity'
-- Accepted RFC (count) => COUNTROWS('Change Data') filtered by Change Data[RFC Decision] = 'Accepted'
-- RFC Cost Impact => SUM('Change Data'[RFC VALUE (OMR)]) filtered by Change Data[RFC Decision] = 'Accepted'
-- Procurement Packages => [Procurement TES New].[Number of Procurement Packages]
-- % Awarded => [Procurement TES New].[% awarded]
-- % Audit execution => [Quality KPIS].[%  Audit execution]
-- % NCR Closed => [Quality KPIS].[%  NCR Closed]
-- Accident Frequency Rate (AFR) => [H&S HSWMetrics].[RAG HSW AFR]
-- Loss Time Incidents => [H&S HSWMetrics].[Sum Value HS] filtered by H&S HSWMetrics[KPI] = 'Loss time Incidents'
+EXECUTIVE DASHBOARD VISUAL MAPPINGS (display label => DAX):
+- CPI => [CPI Current Month To Date] from 'DAX - Cost & EV'
+- SPI => [SPI Current Month To Date] from 'DAX - Cost & EV'
+- Planned Value => [PV (To Date) Current Month] from 'DAX - Cost & EV'
+- Earned Value => [EV (To Date) Current Month] from 'DAX - Cost & EV'
+- Actual Cost => [Total Cost of Work Done to Date (AC)] from 'DAX - Cost & EV'
+- EV Forecast in period => [EV Forecast current month] from 'DAX - Cost & EV'
+- EV in period => [EV obtenido en el mes] from 'DAX - Cost & EV'
+- Accuracy in period => [Forecasting Accuracy Current Month] from 'DAX - Cost & EV'
+- % Progress => [% Actual Complete] from 'DAX - Cost & EV'
+- Budget => [00_Current Budget] from 'DAX - Costos'
+- Forecast Final Cost => [00_FFC Forecast Final Cost] from 'DAX - Costos'
+- Cost Variance => [00_Variance FFC y CB] from 'DAX - Costos'
+- Cost Variance % => [00_Variance (%) FFC vs CB] from 'DAX - Costos'
+- Open Threats => CALCULATE([Open Risks and Issues], 'RiskandIssuesList'[Risk Type] = "a threat")
+- Open Issues => CALCULATE([Open Risks and Issues], 'RiskandIssuesList'[Risk Type] = "an issue")
+- Open Opportunities => CALCULATE([Open Risks and Issues], 'RiskandIssuesList'[Risk Type] = "an opportunity")
+- Accepted RFC count => CALCULATE(COUNTROWS('Change Data'), 'Change Data'[RFC Decision] = "Accepted")
+- RFC Cost Impact => CALCULATE(SUM('Change Data'[RFC VALUE (OMR)]), 'Change Data'[RFC Decision] = "Accepted")
+- Procurement Packages => [Number of Procurement Packages] from 'Procurement TES New'
+- % Awarded => [% awarded] from 'Procurement TES New'
+- % Audit execution => [%  Audit execution] from 'Quality KPIS'
+- % NCR Closed => [%  NCR Closed] from 'Quality KPIS'
+- AFR => [RAG HSW AFR] from 'H&S HSWMetrics'
+- Loss Time Incidents => CALCULATE([Sum Value HS], 'H&S HSWMetrics'[KPI] = "Loss time Incidents")
 
-FULL SCHEMA (all tables):
-- 'Change Data': columns RFC Ref Code, RFC VALUE (OMR), RFC SCHEDULE IMPACT (Days), RFC Duration, Category of Change, AVI Duration, AVI Final Value (OMR), CR Duration, ERI VALUE (Received), UniqueKey
-- 'Change status': columns Decision, UniqueKey | measure: RAG Change Projects
-- 'Costos - Cashflow': measures Cashflow (Cumulative) Actual/Forecast/Planned
-- 'DAX - Cost & EV': measures % Actual Complete, % Planned Complete, CPI Current Month To Date, SPI Current Month To Date, EV (To Date) Current Month, PV (To Date) Current Month, Total Cost of Work Done to Date (AC), EV Forecast current month, EV obtenido en el mes, Forecasting Accuracy Current Month, EAC, CV, SV, RAG EV
-- 'DAX - Costos': measures 00_Current Budget, 00_Original Budget, 00_FFC Forecast Final Cost, 00_Variance FFC y CB, 00_Variance (%) FFC vs CB, 00_Costos_Approved Budgets Changes, Contingency, Accrued To Date, Certified to date, Contract Placed, RAG Cost
-- 'DAX- Risk': measures Open Risks and Issues, Total Risks & Issues, RAG Risks
-- 'DIM - WBS L3 Project': columns Project Name, Programme, Level 3 Project
-- 'DIM - WBS L2 Programme': columns Programme
-- 'Design Comments Status': columns Severity, Stage, Status | measures Count of comments current month, RAG Design
-- 'E&S Environmental Matrix': columns Group category | measures Actual Score Current, RAG Current E&S
-- 'GIS Polygons': columns Level 3 Project, Programme Name, Project Code, Stage, Milestone
-- 'H&S HSWMetrics': columns KPI | measures Cumulative AFR, RAG HSW AFR, Sum Value HS, Sum Value HS card, Man Hours cumulative, Lost workday cases in Period, Manpower in Period
-- 'Interface Data': columns IAF ID, IAF Status, Category, Interface Description | measures Number of Interfaces Actual cumulative, RAG interface % Actual over Planned
-- 'Procurement TES New': columns Contract Description, Name of awarded contracted (Leave blank if not awarded) | measures % awarded, Number of Procurement Packages, Procurement Packages Actual, Procurement Packages Planned, RAG Procurement
-- 'Quality KPIS': measures %  Audit execution, %  NCR Closed, NCR's Raised (accumulative), NCR's Raised (monthly), Actual Audits cumulative, Plan Audits cumulative, RAG Quality KPI
-- 'RAG all levels': measures Monthly Summary, SHC Commentary (Programme)
-- 'RiskandIssuesList': columns Event, Risk Type, Current Score, Treatment Status Summary, Sub-Category, Node Name, Proximity, Record ID, Value, Created/Closed
-- 'Schedule- MilestonesData': columns Plan Finish date, Forecast Finish date, Actual Finish date, Project
-- 'Schedule- RIBA Stages Data': columns PlanFinish date, Forecast Finish date, Actual Finish date | measures Schedule variance Riba, RAG Schedule Average Schedule RIBA 6 Variance
-- 'Schedule - roll up project level': columns Earliest Plan Start, Latest Plan Finish, Earliest Actual Start, Latest Actual Finish
-- 'Stakeholder data': columns Stakeholder Name, Influence, Interest, Current Stage (MACI) calculated, Organisation Code and Name
-- 'Training Courses': measures Actual Trainings to Date, Planned Trainings to Date, RAG Training
-- 'Training Hours': columns Training Hours, Type of Organisation
+ALL TABLES: 'Change Data', 'Change status', 'Costos - Cashflow', 'DAX - Cost & EV', 'DAX - Costos', 'DAX - Display Text', 'DAX - Other', 'DAX- Risk', 'DIM - SecondaryCalendar', 'DIM - WBS L2 Programme', 'DIM - WBS L3 Project', 'Design Comments Status', 'E&S Environmental Matrix', 'GIS Polygons', 'H&S HSWMetrics', 'Interface Data', 'Procurement TES New', 'Quality KPIS', 'RAG Tolerances List', 'RAG all levels', 'RiskandIssuesList', 'Schedule - 1 RIBA Neighbourhood level', 'Schedule - roll up project level', 'Schedule- MilestonesData', 'Schedule- RIBA Stages Data', 'Stakeholder data', 'Training Courses', 'Training Hours'
 
-DAX RULES - FOLLOW EXACTLY:
-1. Output ONLY raw DAX — no markdown, no backticks, no explanations
+DAX RULES:
+1. Output ONLY raw DAX — no markdown, no backticks, no explanation
 2. Always start with EVALUATE
 3. For measures: EVALUATE ROW("Label", [MeasureName])
-4. For filtered measures use CALCULATE: EVALUATE ROW("Label", CALCULATE([MeasureName], 'Table'[Column] = "value"))
-5. For counts with filter: EVALUATE ROW("Label", CALCULATE(COUNTROWS('Table'), 'Table'[Column] = "value"))
-6. For sums with filter: EVALUATE ROW("Label", CALCULATE(SUM('Table'[Column]), 'Table'[Column2] = "value"))
-7. Table names with spaces MUST use single quotes: 'DAX - Cost & EV'
-8. Column names with spaces use square brackets: [Column Name]
+4. Use CALCULATE() for filtered measures
+5. Table names with spaces need single quotes: 'DAX - Cost & EV'
 
-EXACT WORKING EXAMPLES FOR THIS DATASET:
-
+EXAMPLES:
 Q: What is the CPI and SPI?
 EVALUATE
-ROW(
-    "CPI", [CPI Current Month To Date],
-    "SPI", [SPI Current Month To Date]
-)
+ROW("CPI", [CPI Current Month To Date], "SPI", [SPI Current Month To Date])
 
 Q: Show me the Executive Dashboard EV metrics
 EVALUATE
 ROW(
-    "CPI", [CPI Current Month To Date],
-    "SPI", [SPI Current Month To Date],
-    "Planned Value", [PV (To Date) Current Month],
-    "Earned Value", [EV (To Date) Current Month],
-    "Actual Cost", [Total Cost of Work Done to Date (AC)],
-    "EV Forecast in Period", [EV Forecast current month],
-    "EV in Period", [EV obtenido en el mes],
-    "Accuracy in Period", [Forecasting Accuracy Current Month]
+  "CPI", [CPI Current Month To Date],
+  "SPI", [SPI Current Month To Date],
+  "Planned Value", [PV (To Date) Current Month],
+  "Earned Value", [EV (To Date) Current Month],
+  "Actual Cost", [Total Cost of Work Done to Date (AC)],
+  "EV Forecast in Period", [EV Forecast current month],
+  "Accuracy in Period", [Forecasting Accuracy Current Month]
 )
 
 Q: What is the budget and cost variance?
 EVALUATE
 ROW(
-    "Current Budget", [00_Current Budget],
-    "Forecast Final Cost", [00_FFC Forecast Final Cost],
-    "Cost Variance", [00_Variance FFC y CB],
-    "Cost Variance %", [00_Variance (%) FFC vs CB]
+  "Current Budget", [00_Current Budget],
+  "Forecast Final Cost", [00_FFC Forecast Final Cost],
+  "Cost Variance", [00_Variance FFC y CB],
+  "Cost Variance %", [00_Variance (%) FFC vs CB]
 )
 
 Q: How many open threats, issues and opportunities?
 EVALUATE
 ROW(
-    "Open Threats", CALCULATE([Open Risks and Issues], 'RiskandIssuesList'[Risk Type] = "a threat"),
-    "Open Issues", CALCULATE([Open Risks and Issues], 'RiskandIssuesList'[Risk Type] = "an issue"),
-    "Open Opportunities", CALCULATE([Open Risks and Issues], 'RiskandIssuesList'[Risk Type] = "an opportunity")
+  "Open Threats", CALCULATE([Open Risks and Issues], 'RiskandIssuesList'[Risk Type] = "a threat"),
+  "Open Issues", CALCULATE([Open Risks and Issues], 'RiskandIssuesList'[Risk Type] = "an issue"),
+  "Open Opportunities", CALCULATE([Open Risks and Issues], 'RiskandIssuesList'[Risk Type] = "an opportunity")
 )
 
 Q: What is the accepted RFC count and cost impact?
 EVALUATE
 ROW(
-    "Accepted RFC Count", CALCULATE(COUNTROWS('Change Data'), 'Change Data'[RFC Decision] = "Accepted"),
-    "RFC Cost Impact (OMR)", CALCULATE(SUM('Change Data'[RFC VALUE (OMR)]), 'Change Data'[RFC Decision] = "Accepted")
-)
-
-Q: Show me procurement status
-EVALUATE
-ROW(
-    "Procurement Packages", [Number of Procurement Packages],
-    "% Awarded", [% awarded]
-)
-
-Q: What is the quality performance?
-EVALUATE
-ROW(
-    "% Audit Execution", [%  Audit execution],
-    "% NCR Closed", [%  NCR Closed]
-)
-
-Q: What is the H&S performance?
-EVALUATE
-ROW(
-    "Accident Frequency Rate", [RAG HSW AFR],
-    "Loss Time Incidents", CALCULATE([Sum Value HS], 'H&S HSWMetrics'[KPI] = "Loss time Incidents")
+  "Accepted RFC", CALCULATE(COUNTROWS('Change Data'), 'Change Data'[RFC Decision] = "Accepted"),
+  "RFC Cost Impact (OMR)", CALCULATE(SUM('Change Data'[RFC VALUE (OMR)]), 'Change Data'[RFC Decision] = "Accepted")
 )
 
 Q: Give me the full Executive Dashboard summary
 EVALUATE
 ROW(
-    "CPI", [CPI Current Month To Date],
-    "SPI", [SPI Current Month To Date],
-    "Current Budget", [00_Current Budget],
-    "Forecast Final Cost", [00_FFC Forecast Final Cost],
-    "Cost Variance", [00_Variance FFC y CB],
-    "Open Threats", CALCULATE([Open Risks and Issues], 'RiskandIssuesList'[Risk Type] = "a threat"),
-    "Open Issues", CALCULATE([Open Risks and Issues], 'RiskandIssuesList'[Risk Type] = "an issue"),
-    "Accepted RFC", CALCULATE(COUNTROWS('Change Data'), 'Change Data'[RFC Decision] = "Accepted"),
-    "Procurement Packages", [Number of Procurement Packages],
-    "% Awarded", [% awarded],
-    "AFR", [RAG HSW AFR],
-    "% Audit Execution", [%  Audit execution]
+  "CPI", [CPI Current Month To Date],
+  "SPI", [SPI Current Month To Date],
+  "Current Budget", [00_Current Budget],
+  "Forecast Final Cost", [00_FFC Forecast Final Cost],
+  "Cost Variance", [00_Variance FFC y CB],
+  "Open Threats", CALCULATE([Open Risks and Issues], 'RiskandIssuesList'[Risk Type] = "a threat"),
+  "Open Issues", CALCULATE([Open Risks and Issues], 'RiskandIssuesList'[Risk Type] = "an issue"),
+  "Accepted RFC", CALCULATE(COUNTROWS('Change Data'), 'Change Data'[RFC Decision] = "Accepted"),
+  "Procurement Packages", [Number of Procurement Packages],
+  "% Awarded", [% awarded],
+  "AFR", [RAG HSW AFR],
+  "% Audit Execution", [%  Audit execution]
 )`;
-
-
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -1182,108 +526,19 @@ ROW(
       messages: [{ role: 'user', content: question }]
     })
   });
-
   if (!response.ok) {
     const err = await response.json();
     throw new Error(err.error?.message || 'Claude API error');
   }
-
   const data = await response.json();
-  // Strip any markdown code fences Claude might include despite instructions
   let dax = data.content[0].text.trim();
   dax = dax.replace(/^```[\w]*\n?/gm, '').replace(/```$/gm, '').trim();
   return dax;
 }
 
-function getPBIEndpoint() {
-  return config.workspaceId
-    ? `https://api.powerbi.com/v1.0/myorg/groups/${config.workspaceId}/datasets/${config.datasetId}/executeQueries`
-    : `https://api.powerbi.com/v1.0/myorg/datasets/${config.datasetId}/executeQueries`;
-}
-
-async function executeDAX(daxQuery) {
-  const response = await fetch(getPBIEndpoint(), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${pbiToken}` },
-    body: JSON.stringify({
-      queries: [{ query: daxQuery }],
-      serializerSettings: { includeNulls: true }
-    })
-  });
-
-  if (!response.ok) {
-    const errData = await response.json();
-    const errMsg = errData.error?.message || `API error ${response.status}`;
-    if (response.status === 400) {
-      throw new Error("DAX query error: table/column names don't match your dataset.\n\nError: " + errMsg + "\n\nTip: Type 'what tables are in my dataset?' to discover your schema.");
-    }
-    if (response.status === 401) {
-      isAuthenticated = false;
-      setStatus(false);
-      throw new Error("Authentication expired. Please click Connect to Power BI again.");
-    }
-    throw new Error(errMsg);
-  }
-  return await response.json();
-}
-
-async function discoverSchema() {
-  // For regular PBIX datasets, use DAX INFO.TABLES() via executeQueries
-  const daxQueries = [
-    `EVALUATE SELECTCOLUMNS(FILTER(INFO.TABLES(), NOT([IsHidden])), "TableName", [Name])`,
-    `EVALUATE SELECTCOLUMNS(INFO.TABLES(), "TableName", [Name])`,
-    `EVALUATE INFO.TABLES()`
-  ];
-
-  for (let i = 0; i < daxQueries.length; i++) {
-    try {
-      const r = await fetch(getPBIEndpoint(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${pbiToken}` },
-        body: JSON.stringify({ queries: [{ query: daxQueries[i] }], serializerSettings: { includeNulls: true } })
-      });
-      if (r.ok) {
-        const data = await r.json();
-        const rows = data.results[0].tables[0].rows;
-        if (!rows || rows.length === 0) continue;
-
-        // Extract table names — find string values that look like table names (not GUIDs, not numbers)
-        const guidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-/i;
-        const allNames = [];
-
-        rows.forEach(function(row) {
-          Object.values(row).forEach(function(val) {
-            if (typeof val === 'string' && val.length > 0 && !guidPattern.test(val) && isNaN(val)) {
-              allNames.push(val);
-            }
-          });
-        });
-
-        // Deduplicate and filter out system tables (starting with $ or DateTable)
-        const tableNames = [...new Set(allNames)].filter(function(n) {
-          return !n.startsWith('$') && !n.startsWith('LocalDate') && n !== 'True' && n !== 'False';
-        });
-
-        if (tableNames.length > 0) {
-          config.schemaContext = "Actual table names in this Power BI dataset: " + tableNames.join(', ');
-          config.tableNames = tableNames;
-          localStorage.setItem('pbi_chat_config', JSON.stringify(config));
-          // Return in a format compatible with display
-          return tableNames.map(function(n) { return { name: n, columns: [] }; });
-        }
-      }
-    } catch(e) { continue; }
-  }
-
-  // If all DAX approaches fail, throw with helpful message
-  throw new Error("AUTO_DISCOVER_FAILED");
-}
-
-async function interpretResult(question, resultRows) {
-  // Generate a chatty, friendly interpretation of the data
-  if (!resultRows || resultRows.length === 0) return null;
-
-  const resultSummary = JSON.stringify(resultRows.slice(0, 10));
+// ── INTERPRETATION ──
+async function interpretResult(question, rows) {
+  if (!rows || rows.length === 0) return null;
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -1294,24 +549,12 @@ async function interpretResult(question, resultRows) {
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 300,
-      system: `You are a friendly, upbeat project data assistant for Mace's Monthly Portfolio Progress Report.
-Your job is to give a SHORT, chatty 1-3 sentence interpretation of query results.
+      max_tokens: 200,
+      system: `You are a friendly project data assistant for Mace's Monthly Portfolio Progress Report.
+Give a SHORT, chatty 1-3 sentence interpretation of query results.
 Be conversational and warm — like a knowledgeable colleague giving a quick briefing.
-Always mention the key numbers. Add a brief observation or context where relevant.
-Use plain English. No bullet points. No markdown. No headers. Keep it under 60 words.
-Examples of good tone:
-- "Great news on procurement — all 6 packages are tracked and 33% have been awarded so far, keeping things on track!"
-- "The CPI sits at 1.00 which is exactly on budget — solid performance. SPI at 0.94 means the schedule is running slightly behind, so one to watch."
-- "There are 16 open threats and 16 open issues at the moment — a fairly active risk register that will need close attention this period."`,
-      messages: [{
-        role: 'user',
-        content: `The user asked: "${question}"
-
-The data returned: ${resultSummary}
-
-Give a short, friendly interpretation.`
-      }]
+Always mention the key numbers. Keep it under 60 words. No bullet points. No markdown headers. Plain sentences only.`,
+      messages: [{ role: 'user', content: 'User asked: "' + question + '"\n\nData: ' + JSON.stringify(rows.slice(0, 5)) + '\n\nGive a short friendly interpretation.' }]
     })
   });
   if (!response.ok) return null;
@@ -1319,41 +562,51 @@ Give a short, friendly interpretation.`
   return data.content[0].text.trim();
 }
 
+// ── POWER BI ──
+function getPBIEndpoint() {
+  return config.workspaceId
+    ? 'https://api.powerbi.com/v1.0/myorg/groups/' + config.workspaceId + '/datasets/' + config.datasetId + '/executeQueries'
+    : 'https://api.powerbi.com/v1.0/myorg/datasets/' + config.datasetId + '/executeQueries';
+}
+
+async function executeDAX(daxQuery) {
+  const response = await fetch(getPBIEndpoint(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + pbiToken },
+    body: JSON.stringify({ queries: [{ query: daxQuery }], serializerSettings: { includeNulls: true } })
+  });
+  if (!response.ok) {
+    const errData = await response.json();
+    const errMsg = errData.error?.message || 'API error ' + response.status;
+    if (response.status === 400) throw new Error('DAX error — ' + errMsg + '\n\nTip: The table/column names in the query may not match exactly. Try rephrasing your question.');
+    if (response.status === 401) { isAuthenticated = false; setStatus(false); throw new Error('Session expired — please click Connect to Power BI again.'); }
+    throw new Error(errMsg);
+  }
+  return await response.json();
+}
+
 function formatResult(data) {
   try {
     const rows = data.results[0].tables[0].rows;
-    if (!rows || rows.length === 0) {
-      return { summary: 'The query returned no results. The data may not exist or the filter returned an empty set.', html: '' };
-    }
-
+    if (!rows || rows.length === 0) return { summary: 'The query returned no results for this period.', html: '', rows: [] };
     const cols = Object.keys(rows[0]);
-    const count = rows.length;
-
-    // Build table HTML
     let html = '<div class="result-table-wrap"><table class="result-table"><thead><tr>';
-    cols.forEach(c => { html += `<th>${c.replace('[', '').replace(']', '')}</th>`; });
+    cols.forEach(c => { html += '<th>' + c.replace('[','').replace(']','') + '</th>'; });
     html += '</tr></thead><tbody>';
-
-    const displayRows = rows.slice(0, 50);
-    displayRows.forEach(row => {
+    rows.slice(0, 50).forEach(row => {
       html += '<tr>';
       cols.forEach(c => {
         const val = row[c];
-        const formatted = typeof val === 'number'
-          ? val.toLocaleString('en-GB', { maximumFractionDigits: 2 })
-          : (val ?? '—');
-        html += `<td>${formatted}</td>`;
+        const fmt = typeof val === 'number' ? val.toLocaleString('en-GB', { maximumFractionDigits: 2 }) : (val ?? '—');
+        html += '<td>' + fmt + '</td>';
       });
       html += '</tr>';
     });
-
     html += '</tbody></table></div>';
-    if (count > 50) html += `<div style="font-size:11px;color:var(--text-dim);margin-top:6px">Showing 50 of ${count} rows</div>`;
-
-    const summary = `✅ Query returned **${count} row${count !== 1 ? 's' : ''}**:`;
-    return { summary, html, rows };
-  } catch (e) {
-    return { summary: 'Query executed successfully but results could not be parsed.', html: '', rows: [] };
+    if (rows.length > 50) html += '<div style="font-size:10px;color:var(--text-dim);margin-top:4px">Showing 50 of ' + rows.length + ' rows</div>';
+    return { summary: '✅ ' + rows.length + ' row' + (rows.length !== 1 ? 's' : '') + ' returned:', html, rows };
+  } catch(e) {
+    return { summary: 'Query ran but results could not be parsed.', html: '', rows: [] };
   }
 }
 
@@ -1361,39 +614,28 @@ function formatResult(data) {
 function addMessage(role, text, dax, tableHTML) {
   const container = document.getElementById('chat-messages');
   const msg = document.createElement('div');
-  msg.className = `message ${role}`;
-
+  msg.className = 'message ' + role;
   const avatar = document.createElement('div');
   avatar.className = 'avatar';
   avatar.textContent = role === 'assistant' ? '🤖' : '👤';
-
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
-
-  // Simple markdown-like formatting
-  const formatted = text
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/\n/g, '<br>');
+  const formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>').replace(/\n/g, '<br>');
   bubble.innerHTML = formatted;
-
   if (dax) {
-    const daxDiv = document.createElement('div');
-    daxDiv.innerHTML = `<div class="dax-label">DAX Query</div><div class="dax-block">${escapeHtml(dax)}</div>`;
-    bubble.appendChild(daxDiv);
+    const d = document.createElement('div');
+    d.innerHTML = '<div class="dax-label">DAX Query</div><div class="dax-block">' + escapeHtml(dax) + '</div>';
+    bubble.appendChild(d);
   }
-
   if (tableHTML) {
-    const tableDiv = document.createElement('div');
-    tableDiv.innerHTML = tableHTML;
-    bubble.appendChild(tableDiv);
+    const t = document.createElement('div');
+    t.innerHTML = tableHTML;
+    bubble.appendChild(t);
   }
-
   const meta = document.createElement('div');
   meta.className = 'bubble-meta';
   meta.textContent = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   bubble.appendChild(meta);
-
   msg.appendChild(avatar);
   msg.appendChild(bubble);
   container.appendChild(msg);
@@ -1407,26 +649,14 @@ function showTyping() {
   const msg = document.createElement('div');
   msg.className = 'message assistant';
   msg.id = id;
-  msg.innerHTML = `
-    <div class="avatar">🤖</div>
-    <div class="bubble">
-      <div class="typing-indicator">
-        <span></span><span></span><span></span>
-      </div>
-    </div>`;
+  msg.innerHTML = '<div class="avatar">🤖</div><div class="bubble"><div class="typing-indicator"><span></span><span></span><span></span></div></div>';
   container.appendChild(msg);
   container.scrollTop = container.scrollHeight;
   return id;
 }
 
-function removeTyping(id) {
-  const el = document.getElementById(id);
-  if (el) el.remove();
-}
-
-function escapeHtml(str) {
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+function removeTyping(id) { const el = document.getElementById(id); if (el) el.remove(); }
+function escapeHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // ── INIT ──
 window.onload = loadConfig;
