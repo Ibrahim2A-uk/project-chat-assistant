@@ -418,7 +418,13 @@ async function generateDAX(question) {
 
 CRITICAL: Use ONLY the exact table and measure names listed. Never guess or invent names.
 
-EXECUTIVE DASHBOARD VISUAL MAPPINGS (display label => DAX):
+CRITICAL FILTER RULE — COST & COMMERCIAL DATA:
+The Cost & Commercial page applies a page-level filter excluding null neighbourhoods.
+For ALL cost/budget/commercial queries, ALWAYS wrap measures in CALCULATE with this filter:
+CALCULATE([measure], NOT ISBLANK('DIM - WBS L2 Programme'[Level 2 Neighbourhood]))
+This ensures totals match the report (e.g. Current Budget = 256.2M not 258.9M).
+
+EXECUTIVE DASHBOARD VISUAL MAPPINGS (display label => exact DAX measure):
 - CPI => [CPI Current Month To Date] from 'DAX - Cost & EV'
 - SPI => [SPI Current Month To Date] from 'DAX - Cost & EV'
 - Planned Value => [PV (To Date) Current Month] from 'DAX - Cost & EV'
@@ -428,10 +434,28 @@ EXECUTIVE DASHBOARD VISUAL MAPPINGS (display label => DAX):
 - EV in period => [EV obtenido en el mes] from 'DAX - Cost & EV'
 - Accuracy in period => [Forecasting Accuracy Current Month] from 'DAX - Cost & EV'
 - % Progress => [% Actual Complete] from 'DAX - Cost & EV'
-- Budget => [00_Current Budget] from 'DAX - Costos'
-- Forecast Final Cost => [00_FFC Forecast Final Cost] from 'DAX - Costos'
-- Cost Variance => [00_Variance FFC y CB] from 'DAX - Costos'
-- Cost Variance % => [00_Variance (%) FFC vs CB] from 'DAX - Costos'
+
+COST & COMMERCIAL MAPPINGS (with mandatory filter applied):
+- Original Budget (249.2M) => CALCULATE([00_Original Budget], NOT ISBLANK('DIM - WBS L2 Programme'[Level 2 Neighbourhood]))
+- Approved Budget Changes (7.0M) => CALCULATE([00_Costos_Approved Budgets Changes], NOT ISBLANK('DIM - WBS L2 Programme'[Level 2 Neighbourhood]))
+- Current Budget (256.2M) => CALCULATE([00_Current Budget], NOT ISBLANK('DIM - WBS L2 Programme'[Level 2 Neighbourhood]))
+- Forecast Final Cost => CALCULATE([00_FFC Forecast Final Cost], NOT ISBLANK('DIM - WBS L2 Programme'[Level 2 Neighbourhood]))
+- Cost Variance (FFC vs CB) => CALCULATE([00_Variance FFC y CB], NOT ISBLANK('DIM - WBS L2 Programme'[Level 2 Neighbourhood]))
+- Cost Variance % => CALCULATE([00_Variance (%) FFC vs CB], NOT ISBLANK('DIM - WBS L2 Programme'[Level 2 Neighbourhood]))
+- Contract Placed => CALCULATE([Contract Placed], NOT ISBLANK('DIM - WBS L2 Programme'[Level 2 Neighbourhood]))
+- Agreed Instructions => CALCULATE([Agreed Instructions], NOT ISBLANK('DIM - WBS L2 Programme'[Level 2 Neighbourhood]))
+- Unagreed Instructions => CALCULATE([Unagreed Instructions], NOT ISBLANK('DIM - WBS L2 Programme'[Level 2 Neighbourhood]))
+- Current Commitments => CALCULATE([00_Current Commitments], NOT ISBLANK('DIM - WBS L2 Programme'[Level 2 Neighbourhood]))
+- Contingency Drawdown => CALCULATE([Contingency], NOT ISBLANK('DIM - WBS L2 Programme'[Level 2 Neighbourhood]))
+- Certified to date => CALCULATE([Certified to date], NOT ISBLANK('DIM - WBS L2 Programme'[Level 2 Neighbourhood]))
+
+EXECUTIVE DASHBOARD COST CARD (no filter needed — uses report-level):
+- Budget card (256.2M) => [00_Current Budget]
+- Forecast card => [00_FFC Forecast Final Cost]
+- Cost Variance card (7.96M) => [00_Variance FFC y CB]
+- Cost Variance % card (3.11%) => [00_Variance (%) FFC vs CB]
+
+OTHER MAPPINGS:
 - Open Threats => CALCULATE([Open Risks and Issues], 'RiskandIssuesList'[Risk Type] = "a threat")
 - Open Issues => CALCULATE([Open Risks and Issues], 'RiskandIssuesList'[Risk Type] = "an issue")
 - Open Opportunities => CALCULATE([Open Risks and Issues], 'RiskandIssuesList'[Risk Type] = "an opportunity")
@@ -473,10 +497,32 @@ ROW(
 Q: What is the budget and cost variance?
 EVALUATE
 ROW(
-  "Current Budget", [00_Current Budget],
-  "Forecast Final Cost", [00_FFC Forecast Final Cost],
-  "Cost Variance", [00_Variance FFC y CB],
-  "Cost Variance %", [00_Variance (%) FFC vs CB]
+  "Original Budget", CALCULATE([00_Original Budget], NOT ISBLANK('DIM - WBS L2 Programme'[Level 2 Neighbourhood])),
+  "Approved Budget Changes", CALCULATE([00_Costos_Approved Budgets Changes], NOT ISBLANK('DIM - WBS L2 Programme'[Level 2 Neighbourhood])),
+  "Current Budget", CALCULATE([00_Current Budget], NOT ISBLANK('DIM - WBS L2 Programme'[Level 2 Neighbourhood])),
+  "Forecast Final Cost", CALCULATE([00_FFC Forecast Final Cost], NOT ISBLANK('DIM - WBS L2 Programme'[Level 2 Neighbourhood])),
+  "Cost Variance", CALCULATE([00_Variance FFC y CB], NOT ISBLANK('DIM - WBS L2 Programme'[Level 2 Neighbourhood])),
+  "Cost Variance %", CALCULATE([00_Variance (%) FFC vs CB], NOT ISBLANK('DIM - WBS L2 Programme'[Level 2 Neighbourhood]))
+)
+
+Q: What is the original budget?
+EVALUATE
+ROW(
+  "Original Budget", CALCULATE([00_Original Budget], NOT ISBLANK('DIM - WBS L2 Programme'[Level 2 Neighbourhood]))
+)
+
+Q: Show me the cost summary by programme
+EVALUATE
+CALCULATETABLE(
+  SUMMARIZECOLUMNS(
+    'DIM - WBS L2 Programme'[Programme],
+    "Original Budget", [00_Original Budget],
+    "Approved Budget Changes", [00_Costos_Approved Budgets Changes],
+    "Current Budget", [00_Current Budget],
+    "Forecast Final Cost", [00_FFC Forecast Final Cost],
+    "Cost Variance", [00_Variance FFC y CB]
+  ),
+  NOT ISBLANK('DIM - WBS L2 Programme'[Level 2 Neighbourhood])
 )
 
 Q: How many open threats, issues and opportunities?
